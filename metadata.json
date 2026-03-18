@@ -1,0 +1,8 @@
+{
+  "name": "NanaGraphy",
+  "description": "A premium lifestyle photography blog and portfolio for professional photographers, featuring editorial design and AI-powered accessibility.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

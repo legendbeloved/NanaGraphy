@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Cormorant Garamond", serif;
+  --font-sans: "DM Sans", sans-serif;
+
+  --color-cream: #F5F2ED;
+  --color-sand: #D9D2C5;
+  --color-ink: #1A1A1A;
+  --color-glass: rgba(255, 255, 255, 0.1);
+  --color-glass-border: rgba(255, 255, 255, 0.2);
+}
+
+@layer base {
+  body {
+    @apply bg-cream text-ink font-sans antialiased transition-colors duration-300;
+  }
+
+  .dark body {
+    @apply bg-ink text-cream;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply backdrop-blur-md bg-white/10 border border-white/20 shadow-xl;
+  }
+
+  .glass-dark {
+    @apply backdrop-blur-md bg-black/20 border border-white/10 shadow-xl;
+  }
+
+  .btn-primary {
+    @apply px-8 py-3 bg-ink text-cream rounded-full font-medium transition-all hover:scale-105 active:scale-95 disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply px-8 py-3 border border-ink text-ink rounded-full font-medium transition-all hover:bg-ink hover:text-cream active:scale-95 disabled:opacity-50;
+  }
+}
