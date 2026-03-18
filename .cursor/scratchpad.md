@@ -42,7 +42,8 @@ NanaGraphy is a premium lifestyle photography blog and portfolio for Nana, a pro
 
 ## Project Status Board
 - **Current Role**: Executor
-- **Status**: Firebase declined. Pivoting to LocalStorage for data persistence to maintain functionality in the preview.
+- **Status**: Initialized Git repo, created initial commit, and pushed `main` to https://github.com/legendbeloved/NanaGraphy.
 
 ## Lessons
-- (To be populated during execution)
+- When cloning/exporting a project into a new folder, you may need to `git init` + set the remote before pushing.
+- If you see LF/CRLF warnings on Windows, consider setting a repo-level `.gitattributes` later to standardize line endings.
