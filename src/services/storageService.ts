@@ -38,8 +38,16 @@ class StorageService {
     if (!data) return initial;
     try {
       return JSON.parse(data, (key, value) => {
-        if (['createdAt', 'updatedAt', 'datePreference', 'publishedAt'].includes(key)) {
+        if (['createdAt', 'updatedAt', 'publishedAt'].includes(key)) {
           return new Date(value);
+        }
+        if (key === 'datePreference') {
+          if (Array.isArray(value)) {
+            return value.map((v: any) => new Date(v));
+          } else if (typeof value === 'string') {
+            return [new Date(value)]; // backward compatibility for string dates
+          }
+          return [];
         }
         return value;
       });
@@ -75,6 +83,19 @@ class StorageService {
     this.set(STORAGE_KEYS.POSTS, posts);
   }
 
+  deletePost(postId: string) {
+    const posts = this.getPosts().filter(p => p.id !== postId);
+    this.set(STORAGE_KEYS.POSTS, posts);
+  }
+
+  setPostPublished(postId: string, published: boolean) {
+    const posts = this.getPosts();
+    const index = posts.findIndex(p => p.id === postId);
+    if (index === -1) return;
+    posts[index] = { ...posts[index], published, updatedAt: new Date() };
+    this.set(STORAGE_KEYS.POSTS, posts);
+  }
+
   // Portfolio
   getPortfolio(): PortfolioItem[] {
     return this.get(STORAGE_KEYS.PORTFOLIO, INITIAL_PORTFOLIO);
@@ -82,7 +103,17 @@ class StorageService {
 
   savePortfolioItem(item: PortfolioItem) {
     const items = this.getPortfolio();
-    items.push(item);
+    const index = items.findIndex(i => i.id === item.id);
+    if (index > -1) {
+      items[index] = item;
+    } else {
+      items.push(item);
+    }
+    this.set(STORAGE_KEYS.PORTFOLIO, items);
+  }
+
+  deletePortfolioItem(itemId: string) {
+    const items = this.getPortfolio().filter(i => i.id !== itemId);
     this.set(STORAGE_KEYS.PORTFOLIO, items);
   }
 
@@ -95,6 +126,18 @@ class StorageService {
     const bookings = this.getBookings();
     bookings.push(booking);
     this.set(STORAGE_KEYS.BOOKINGS, bookings);
+  }
+
+  updateBooking(bookingId: string, updates: Partial<Booking>) {
+    const bookings = this.getBookings();
+    const index = bookings.findIndex(b => b.id === bookingId);
+    if (index === -1) return;
+    bookings[index] = { ...bookings[index], ...updates };
+    this.set(STORAGE_KEYS.BOOKINGS, bookings);
+  }
+
+  setBookingStatus(bookingId: string, status: Booking['status']) {
+    this.updateBooking(bookingId, { status });
   }
 
   // Auth

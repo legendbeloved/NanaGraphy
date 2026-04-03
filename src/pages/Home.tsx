@@ -58,7 +58,7 @@ const Home = () => {
                   View Portfolio
                 </Link>
                 <Link to="/book" className="px-10 py-4 bg-transparent border border-white text-white rounded-full font-medium hover:bg-white hover:text-ink transition-all">
-                  Book a Session
+                  Purchase an Aventa
                 </Link>
               </motion.div>
             </div>

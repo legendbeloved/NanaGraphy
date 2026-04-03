@@ -30,8 +30,12 @@ export interface Booking {
   id: string;
   clientName: string;
   clientEmail: string;
-  serviceType: 'Portrait' | 'Lifestyle' | 'Event' | 'Other';
-  datePreference: string;
+  serviceType: 'Low Grade' | 'Middle Grade' | 'High Grade';
+  datePreference: Date[];
+  isGift: boolean;
+  giftRecipientName?: string;
+  giftRecipientEmail?: string;
+  giftMessage?: string;
   message: string;
   status: 'Pending' | 'Confirmed' | 'Cancelled';
   createdAt: Date;

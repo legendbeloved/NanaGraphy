@@ -19,12 +19,14 @@ const BlogPostEditor = ({ onClose, onSave, initialData }: BlogPostEditorProps) =
   const [content, setContent] = useState(initialData?.content || '');
   const [coverImage, setCoverImage] = useState(initialData?.coverImage || '');
   const [altText, setAltText] = useState(initialData?.altText || '');
+  const [published, setPublished] = useState<boolean>(initialData?.published ?? true);
   const [publishedAt, setPublishedAt] = useState(
     initialData?.publishedAt 
       ? new Date(initialData.publishedAt).toISOString().slice(0, 16) 
       : new Date().toISOString().slice(0, 16)
   );
   const [isGeneratingAlt, setIsGeneratingAlt] = useState(false);
+  const [activeView, setActiveView] = useState<'edit' | 'preview'>('edit');
 
   const handleGenerateAlt = async () => {
     if (!coverImage) return;
@@ -53,9 +55,12 @@ const BlogPostEditor = ({ onClose, onSave, initialData }: BlogPostEditorProps) =
             <span>Back to Dashboard</span>
           </button>
           <div className="flex items-center space-x-4">
-            <button className="flex items-center space-x-2 px-6 py-2 border border-black/10 dark:border-white/10 rounded-full text-xs uppercase tracking-widest hover:bg-black/5 transition-all">
+            <button
+              onClick={() => setActiveView(activeView === 'edit' ? 'preview' : 'edit')}
+              className="flex items-center space-x-2 px-6 py-2 border border-black/10 dark:border-white/10 rounded-full text-xs uppercase tracking-widest hover:bg-black/5 transition-all"
+            >
               <Eye className="w-3 h-3" />
-              <span>Preview</span>
+              <span>{activeView === 'edit' ? 'Preview' : 'Edit'}</span>
             </button>
             <button 
               onClick={() => onSave({ 
@@ -65,6 +70,7 @@ const BlogPostEditor = ({ onClose, onSave, initialData }: BlogPostEditorProps) =
                 content, 
                 coverImage, 
                 altText,
+                published,
                 publishedAt: new Date(publishedAt)
               })}
               className="flex items-center space-x-2 px-8 py-2 bg-ink text-cream rounded-full text-xs uppercase tracking-widest hover:scale-105 transition-transform shadow-lg"
@@ -89,27 +95,58 @@ const BlogPostEditor = ({ onClose, onSave, initialData }: BlogPostEditorProps) =
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Excerpt</label>
-              <textarea
-                value={excerpt}
-                onChange={(e) => setExcerpt(e.target.value)}
-                rows={3}
-                placeholder="A brief summary for the listing page..."
-                className="w-full px-8 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl text-lg font-light focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all resize-none"
-              />
-            </div>
+            {activeView === 'edit' ? (
+              <>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Excerpt</label>
+                  <textarea
+                    value={excerpt}
+                    onChange={(e) => setExcerpt(e.target.value)}
+                    rows={3}
+                    placeholder="A brief summary for the listing page..."
+                    className="w-full px-8 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl text-lg font-light focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all resize-none"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Content (HTML/Markdown)</label>
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows={15}
-                placeholder="Write your story here..."
-                className="w-full px-8 py-6 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-[2rem] font-mono text-sm focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all resize-none"
-              />
-            </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Content (HTML)</label>
+                  <textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    rows={15}
+                    placeholder="Write your story here..."
+                    className="w-full px-8 py-6 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-[2rem] font-mono text-sm focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all resize-none"
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="space-y-8">
+                <div className="space-y-3">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Preview</p>
+                  {coverImage ? (
+                    <div className="relative aspect-[16/9] rounded-[2rem] overflow-hidden border border-black/5 dark:border-white/10 shadow-xl">
+                      <img
+                        src={coverImage}
+                        alt={altText || title || 'Cover'}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  ) : null}
+                  <div className="glass dark:glass-dark p-8 rounded-[2rem]">
+                    <div className="space-y-2 mb-8">
+                      <p className="text-[10px] uppercase tracking-widest opacity-50">{category}</p>
+                      <h1 className="text-5xl font-display leading-[0.95]">{title || 'Untitled Post'}</h1>
+                      {excerpt ? <p className="text-lg opacity-70 font-light leading-relaxed">{excerpt}</p> : null}
+                    </div>
+                    <div
+                      className="prose prose-lg dark:prose-invert max-w-none font-light leading-relaxed prose-headings:font-display prose-headings:font-normal"
+                      dangerouslySetInnerHTML={{ __html: content || '<p class=\"opacity-50\">No content yet.</p>' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar Settings */}
@@ -139,6 +176,22 @@ const BlogPostEditor = ({ onClose, onSave, initialData }: BlogPostEditorProps) =
                   className="w-full px-4 py-3 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-xl text-xs focus:outline-none"
                 />
                 <p className="text-[9px] opacity-40 italic">Set a future date to schedule this post.</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50">Publishing</label>
+                <button
+                  type="button"
+                  onClick={() => setPublished(!published)}
+                  className={cn(
+                    "w-full px-4 py-3 rounded-xl text-xs uppercase tracking-widest border transition-colors text-left",
+                    published
+                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                      : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                  )}
+                >
+                  {published ? 'Published' : 'Draft'}
+                </button>
               </div>
 
               <div className="space-y-4">

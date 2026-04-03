@@ -1,20 +1,43 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Calendar, User, Mail, MessageSquare, ArrowRight, ArrowLeft, CheckCircle2, Star } from 'lucide-react';
-import { SERVICE_TYPES } from '../constants';
+import { Calendar as CalendarIcon, User, Mail, MessageSquare, ArrowRight, ArrowLeft, CheckCircle2, Star, Gift } from 'lucide-react';
+import { AVENTA_PACKAGES } from '../constants';
 import { cn } from '../utils';
 import { storage } from '../services/storageService';
 import { sendBookingNotification } from '../services/emailService';
+import { DayPicker } from 'react-day-picker';
+import 'react-day-picker/style.css'; // modern react-day-picker styles
 
 const bookingSchema = z.object({
   clientName: z.string().min(2, 'Name is required'),
   clientEmail: z.string().email('Invalid email address'),
-  serviceType: z.enum(['Portrait', 'Lifestyle', 'Event', 'Other']),
-  datePreference: z.string().min(1, 'Date preference is required'),
+  isGift: z.boolean(),
+  giftRecipientName: z.string().optional(),
+  giftRecipientEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
+  giftMessage: z.string().optional(),
+  serviceType: z.enum(['Low Grade', 'Middle Grade', 'High Grade']),
+  datePreference: z.array(z.date()).min(1, 'Please select at least one date'),
   message: z.string().min(10, 'Please provide a bit more detail (min 10 chars)'),
+}).superRefine((data, ctx) => {
+  if (data.isGift) {
+    if (!data.giftRecipientName || data.giftRecipientName.length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Recipient name is required',
+        path: ['giftRecipientName']
+      });
+    }
+    if (!data.giftRecipientEmail || !data.giftRecipientEmail.includes('@')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Valid recipient email required',
+        path: ['giftRecipientEmail']
+      });
+    }
+  }
 });
 
 type BookingFormData = z.infer<typeof bookingSchema>;
@@ -23,42 +46,51 @@ const Book = () => {
   const [step, setStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const { register, handleSubmit, formState: { errors }, trigger } = useForm<BookingFormData>({
+  const { register, handleSubmit, formState: { errors }, trigger, watch, control } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
-      serviceType: 'Portrait'
+      serviceType: 'Low Grade',
+      isGift: false,
+      datePreference: [],
     }
   });
 
+  const isGift = watch('isGift');
+
   const nextStep = async () => {
     let fieldsToValidate: (keyof BookingFormData)[] = [];
-    if (step === 1) fieldsToValidate = ['clientName', 'clientEmail'];
+    if (step === 1) {
+      fieldsToValidate = ['clientName', 'clientEmail'];
+      if (isGift) {
+        fieldsToValidate.push('giftRecipientName', 'giftRecipientEmail');
+      }
+    }
     if (step === 2) fieldsToValidate = ['serviceType', 'datePreference'];
-    
+
     const isValid = await trigger(fieldsToValidate);
     if (isValid) setStep(step + 1);
   };
 
-  const onSubmit = async (data: BookingFormData) => {
+  const onSubmit = async (data: any) => {
     const booking = {
       id: crypto.randomUUID(),
       ...data,
       status: 'Pending' as const,
       createdAt: new Date()
     };
-    
+
     storage.saveBooking(booking);
-    
+
     // Send email notification
     await sendBookingNotification(booking);
-    
+
     setIsSubmitted(true);
   };
 
   if (isSubmitted) {
     return (
       <div className="pt-32 pb-20 px-6 min-h-screen flex items-center justify-center">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="max-w-md w-full text-center space-y-8 p-12 bg-white dark:bg-ink/50 rounded-[3rem] shadow-2xl border border-black/5 dark:border-white/5"
@@ -69,10 +101,10 @@ const Book = () => {
           <div className="space-y-4">
             <h2 className="text-4xl font-display">Inquiry Sent</h2>
             <p className="text-lg font-light opacity-70">
-              Thank you for reaching out, Nana will get back to you within 48 hours to discuss your session.
+              Thank you for reaching out, Nana will get back to you within 48 hours to discuss your Aventa.
             </p>
           </div>
-          <button 
+          <button
             onClick={() => window.location.href = '/'}
             className="w-full py-4 bg-ink text-cream rounded-full font-medium hover:scale-105 transition-transform"
           >
@@ -88,15 +120,15 @@ const Book = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
         <div className="space-y-12">
           <div className="space-y-4">
-            <span className="text-xs font-medium uppercase tracking-[0.2em] opacity-50">Booking</span>
+            <span className="text-xs font-medium uppercase tracking-[0.2em] opacity-50">Purchase an Aventa</span>
             <h1 className="text-6xl md:text-8xl font-display leading-[0.9]">Let's Work Together</h1>
           </div>
-          
+
           <div className="space-y-8">
             <p className="text-xl font-light leading-relaxed opacity-70">
               I'm thrilled that you're considering me to capture your story. Please fill out the form, and I'll be in touch soon.
             </p>
-            
+
             <div className="space-y-6">
               <div className="flex items-center space-x-4">
                 <div className="w-10 h-10 rounded-full bg-sand/20 flex items-center justify-center">
@@ -106,9 +138,15 @@ const Book = () => {
               </div>
               <div className="flex items-center space-x-4">
                 <div className="w-10 h-10 rounded-full bg-sand/20 flex items-center justify-center">
-                  <Calendar className="w-4 h-4 opacity-50" />
+                  <CalendarIcon className="w-4 h-4 opacity-50" />
                 </div>
                 <p className="text-sm font-medium uppercase tracking-widest opacity-60">Flexible Scheduling</p>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="w-10 h-10 rounded-full bg-sand/20 flex items-center justify-center">
+                  <Gift className="w-4 h-4 opacity-50" />
+                </div>
+                <p className="text-sm font-medium uppercase tracking-widest opacity-60">Beautifully Gifted</p>
               </div>
             </div>
           </div>
@@ -119,7 +157,7 @@ const Book = () => {
             {/* Progress Bar */}
             <div className="flex justify-between mb-12">
               {[1, 2, 3].map((s) => (
-                <div 
+                <div
                   key={s}
                   className={cn(
                     "w-full h-1 rounded-full transition-all duration-500",
@@ -165,6 +203,56 @@ const Book = () => {
                       </div>
                       {errors.clientEmail && <p className="text-xs text-red-500 ml-4">{errors.clientEmail.message}</p>}
                     </div>
+
+                    <div className="pt-4 pb-2">
+                      <label className="flex items-center space-x-3 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          {...register('isGift')}
+                          className="w-5 h-5 rounded border-black/20 text-ink focus:ring-ink transition-colors"
+                        />
+                        <span className="text-sm font-medium uppercase tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">Purchase as a Gift?</span>
+                      </label>
+                    </div>
+
+                    {isGift && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="space-y-6 pt-4 border-t border-black/10 dark:border-white/10"
+                      >
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Recipient Name</label>
+                          <input
+                            {...register('giftRecipientName')}
+                            placeholder="Recipient Name"
+                            className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
+                          />
+                          {errors.giftRecipientName && <p className="text-xs text-red-500 ml-4">{errors.giftRecipientName.message}</p>}
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Recipient Email</label>
+                          <input
+                            {...register('giftRecipientEmail')}
+                            placeholder="Recipient Email"
+                            className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
+                          />
+                          {errors.giftRecipientEmail && <p className="text-xs text-red-500 ml-4">{errors.giftRecipientEmail.message}</p>}
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Gift Message (Optional)</label>
+                          <textarea
+                            {...register('giftMessage')}
+                            rows={3}
+                            placeholder="Add a special note..."
+                            className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all resize-none"
+                          />
+                        </div>
+                      </motion.div>
+                    )}
                   </motion.div>
                 )}
 
@@ -174,31 +262,46 @@ const Book = () => {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    className="space-y-6"
+                    className="space-y-8"
                   >
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Service Type</label>
-                      <select
-                        {...register('serviceType')}
-                        className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all appearance-none"
-                      >
-                        {SERVICE_TYPES.map(type => (
-                          <option key={type} value={type}>{type} Session</option>
+                    <div className="space-y-4">
+                      <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Aventa Grade</label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {AVENTA_PACKAGES.map(pkg => (
+                          <label key={pkg.id} className="relative cursor-pointer group">
+                            <input
+                              type="radio"
+                              value={pkg.id}
+                              {...register('serviceType')}
+                              className="peer sr-only"
+                            />
+                            <div className="p-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl peer-checked:border-ink peer-checked:bg-ink peer-checked:text-cream dark:peer-checked:bg-cream dark:peer-checked:border-cream dark:peer-checked:text-ink transition-all flex flex-col items-center justify-center text-center space-y-2">
+                              <span className="font-display text-lg">{pkg.label}</span>
+                              <span className="text-[10px] uppercase tracking-widest opacity-70 block">{pkg.basePrice}</span>
+                            </div>
+                          </label>
                         ))}
-                      </select>
+                      </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Preferred Date / Month</label>
-                      <div className="relative">
-                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
-                        <input
-                          {...register('datePreference')}
-                          placeholder="e.g. Mid-October or Oct 15th"
-                          className="w-full pl-12 pr-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
+                    <div className="space-y-4 flex flex-col items-center justify-center pt-4">
+                      <label className="text-xs font-medium uppercase tracking-widest opacity-50 pb-2 w-full ml-4">Preferred Dates (Select Multiple)</label>
+                      <div className="bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-[2rem] p-6 shadow-inner w-full flex justify-center">
+                        <Controller
+                          name="datePreference"
+                          control={control}
+                          render={({ field }) => (
+                            <DayPicker
+                              mode="multiple"
+                              min={1}
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              className="font-sans border-0 w-full flex align-middle justify-center p-0 m-0 [&_.rdp-day_button]:!rounded-full [&_.rdp-day]:hover:!bg-black/5 dark:[&_.rdp-day]:hover:!bg-white/5 [&_.rdp-day_button[aria-selected='true']]:!bg-ink dark:[&_.rdp-day_button[aria-selected='true']]:!bg-cream [&_.rdp-day_button[aria-selected='true']]:!text-cream dark:[&_.rdp-day_button[aria-selected='true']]:!text-ink"
+                            />
+                          )}
                         />
                       </div>
-                      {errors.datePreference && <p className="text-xs text-red-500 ml-4">{errors.datePreference.message}</p>}
+                      {errors.datePreference && <p className="text-xs text-red-500 w-full text-center">{errors.datePreference.message}</p>}
                     </div>
                   </motion.div>
                 )}
@@ -217,8 +320,8 @@ const Book = () => {
                         <MessageSquare className="absolute left-4 top-4 w-4 h-4 opacity-30" />
                         <textarea
                           {...register('message')}
-                          rows={5}
-                          placeholder="Tell me about your vision for the session..."
+                          rows={6}
+                          placeholder={isGift ? "Any specific vision or details the recipient would love for their Aventa..." : "Tell me about your vision for the Aventa..."}
                           className="w-full pl-12 pr-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all resize-none"
                         />
                       </div>
@@ -244,7 +347,7 @@ const Book = () => {
                   <button
                     type="button"
                     onClick={nextStep}
-                    className="flex items-center space-x-2 px-8 py-4 bg-ink text-cream rounded-full font-medium hover:scale-105 transition-transform"
+                    className="flex items-center space-x-2 px-8 py-4 bg-ink text-cream rounded-full font-medium hover:scale-105 transition-transform shadow-lg"
                   >
                     <span>Next</span>
                     <ArrowRight className="w-4 h-4" />

@@ -42,8 +42,9 @@ NanaGraphy is a premium lifestyle photography blog and portfolio for Nana, a pro
 
 ## Project Status Board
 - **Current Role**: Executor
-- **Status**: Initialized Git repo, created initial commit, and pushed `main` to https://github.com/legendbeloved/NanaGraphy.
+- **Status**: Admin dashboard upgraded (CRUD-like management for Posts/Portfolio/Bookings) using LocalStorage-backed storage service.
 
 ## Lessons
 - When cloning/exporting a project into a new folder, you may need to `git init` + set the remote before pushing.
 - If you see LF/CRLF warnings on Windows, consider setting a repo-level `.gitattributes` later to standardize line endings.
+- PowerShell 5 does not support `&&` as a command separator; run git commands on separate lines or use `;`.

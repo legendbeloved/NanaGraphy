@@ -2,21 +2,39 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Camera, Lock, Mail, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { storage } from '../services/storageService';
+import { supabase } from '../lib/supabase';
+import { isAdminUser } from '../services/supabaseAdmin';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simple mock auth
-    if (email === 'admin@nanagraphy.com' && password === 'admin') {
-      storage.login();
-      navigate('/admin');
-    } else {
-      alert('Invalid credentials. Use admin@nanagraphy.com / admin');
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+
+      const user = data.user;
+      if (!isAdminUser(user)) {
+        await supabase.auth.signOut();
+        setErrorMessage('This account is not authorized to access the admin dashboard.');
+        return;
+      }
+
+      navigate('/app/admin', { replace: true });
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Login failed.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -36,6 +54,12 @@ const Login = () => {
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
+          {errorMessage ? (
+            <div className="px-6 py-4 bg-red-500/10 text-red-600 rounded-2xl text-sm">
+              {errorMessage}
+            </div>
+          ) : null}
+
           <div className="space-y-2">
             <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Email Address</label>
             <div className="relative">
@@ -68,9 +92,10 @@ const Login = () => {
 
           <button
             type="submit"
-            className="w-full py-4 bg-ink text-cream rounded-full font-medium hover:scale-105 transition-transform shadow-xl flex items-center justify-center space-x-2"
+            disabled={isLoading}
+            className="w-full py-4 bg-ink text-cream rounded-full font-medium hover:scale-105 transition-transform shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:hover:scale-100"
           >
-            <span>Sign In</span>
+            <span>{isLoading ? 'Signing In...' : 'Sign In'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
