@@ -18,7 +18,7 @@ const bookingSchema = z.object({
   giftRecipientName: z.string().optional(),
   giftRecipientEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
   giftMessage: z.string().optional(),
-  serviceType: z.enum(['Low Grade', 'Middle Grade', 'High Grade']),
+  serviceType: z.enum(['Basic', 'Standard', 'Premium']),
   datePreference: z.array(z.date()).min(1, 'Please select at least one date'),
   message: z.string().min(10, 'Please provide a bit more detail (min 10 chars)'),
 }).superRefine((data, ctx) => {
@@ -49,7 +49,7 @@ const Book = () => {
   const { register, handleSubmit, formState: { errors }, trigger, watch, control } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
-      serviceType: 'Low Grade',
+      serviceType: 'Basic',
       isGift: false,
       datePreference: [],
     }
@@ -265,7 +265,7 @@ const Book = () => {
                     className="space-y-8"
                   >
                     <div className="space-y-4">
-                      <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Aventa Grade</label>
+                      <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Aventa Package</label>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {AVENTA_PACKAGES.map(pkg => (
                           <label key={pkg.id} className="relative cursor-pointer group">
@@ -275,7 +275,7 @@ const Book = () => {
                               {...register('serviceType')}
                               className="peer sr-only"
                             />
-                            <div className="p-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl peer-checked:border-ink peer-checked:bg-ink peer-checked:text-cream dark:peer-checked:bg-cream dark:peer-checked:border-cream dark:peer-checked:text-ink transition-all flex flex-col items-center justify-center text-center space-y-2">
+                            <div className="p-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl peer-checked:border-ink peer-checked:bg-ink peer-checked:text-cream dark:peer-checked:bg-cream dark:peer-checked:border-cream dark:peer-checked:text-ink transition-all flex flex-col items-center justify-center text-center space-y-2 h-full">
                               <span className="font-display text-lg">{pkg.label}</span>
                               <span className="text-[10px] uppercase tracking-widest opacity-70 block">{pkg.basePrice}</span>
                             </div>

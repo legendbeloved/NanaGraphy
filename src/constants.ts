@@ -9,15 +9,15 @@ export const CATEGORIES: Category[] = [
 ];
 
 export const SERVICE_TYPES = [
-  'Low Grade',
-  'Middle Grade',
-  'High Grade'
+  'Basic',
+  'Standard',
+  'Premium'
 ] as const;
 
 export const AVENTA_PACKAGES = [
-  { id: 'Low Grade', label: 'Low Grade', basePrice: 'from ₦100k' },
-  { id: 'Middle Grade', label: 'Middle Grade', basePrice: 'from ₦250k' },
-  { id: 'High Grade', label: 'High Grade', basePrice: 'Custom Pricing' }
+  { id: 'Basic', label: 'Basic', basePrice: '₦20,000' },
+  { id: 'Standard', label: 'Standard', basePrice: '₦35,000' },
+  { id: 'Premium', label: 'Premium', basePrice: '₦55k - ₦60k' }
 ] as const;
 
 export const SITE_NAME = 'NanaGraphy';

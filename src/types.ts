@@ -30,7 +30,7 @@ export interface Booking {
   id: string;
   clientName: string;
   clientEmail: string;
-  serviceType: 'Low Grade' | 'Middle Grade' | 'High Grade';
+  serviceType: 'Basic' | 'Standard' | 'Premium';
   datePreference: Date[];
   isGift: boolean;
   giftRecipientName?: string;

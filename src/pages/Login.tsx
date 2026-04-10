@@ -4,35 +4,51 @@ import { Camera, Lock, Mail, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { isAdminUser } from '../services/supabaseAdmin';
+import { storage } from '../services/storageService';
 
 const Login = () => {
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMessage(null);
+    setSuccessMessage(null);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+        
+        setSuccessMessage('Account created! Please manually assign the admin role in your Supabase Dashboard before logging in.');
+        setIsSignUp(false);
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
 
-      const user = data.user;
-      if (!isAdminUser(user)) {
-        await supabase.auth.signOut();
-        setErrorMessage('This account is not authorized to access the admin dashboard.');
-        return;
+        const user = data.user;
+        if (!isAdminUser(user)) {
+          await supabase.auth.signOut();
+          setErrorMessage('This account is not authorized to access the admin dashboard.');
+          return;
+        }
+
+        storage.login();
+        navigate('/admin', { replace: true });
       }
-
-      navigate('/app/admin', { replace: true });
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Login failed.');
+      setErrorMessage(err?.message || (isSignUp ? 'Sign up failed.' : 'Login failed.'));
     } finally {
       setIsLoading(false);
     }
@@ -49,14 +65,20 @@ const Login = () => {
           <div className="w-16 h-16 bg-ink text-cream rounded-full flex items-center justify-center mx-auto shadow-lg">
             <Camera className="w-8 h-8" />
           </div>
-          <h1 className="text-4xl font-display">Admin Portal</h1>
+          <h1 className="text-4xl font-display">{isSignUp ? 'Create Admin' : 'Admin Portal'}</h1>
           <p className="text-sm font-light opacity-60 uppercase tracking-widest">NanaGraphy Management</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleAuth} className="space-y-6">
           {errorMessage ? (
             <div className="px-6 py-4 bg-red-500/10 text-red-600 rounded-2xl text-sm">
               {errorMessage}
+            </div>
+          ) : null}
+
+          {successMessage ? (
+            <div className="px-6 py-4 bg-emerald-500/10 text-emerald-600 rounded-2xl text-sm">
+              {successMessage}
             </div>
           ) : null}
 
@@ -95,18 +117,29 @@ const Login = () => {
             disabled={isLoading}
             className="w-full py-4 bg-ink text-cream rounded-full font-medium hover:scale-105 transition-transform shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:hover:scale-100"
           >
-            <span>{isLoading ? 'Signing In...' : 'Sign In'}</span>
+            <span>{isLoading ? (isSignUp ? 'Signing Up...' : 'Signing In...') : (isSignUp ? 'Sign Up' : 'Sign In')}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
-        <div className="text-center">
+        <div className="text-center space-y-4">
           <button 
-            onClick={() => navigate('/')}
-            className="text-xs opacity-50 hover:opacity-100 transition-opacity uppercase tracking-widest"
+            onClick={() => { setIsSignUp(!isSignUp); setErrorMessage(null); setSuccessMessage(null); }}
+            className="text-xs opacity-70 hover:opacity-100 transition-opacity"
+            type="button"
           >
-            Return to Site
+            {isSignUp ? 'Already have an account? Sign In' : 'Need an admin account? Sign Up'}
           </button>
+          
+          <div className="pt-2">
+            <button 
+              onClick={() => navigate('/')}
+              className="text-xs opacity-50 hover:opacity-100 transition-opacity uppercase tracking-widest"
+              type="button"
+            >
+              Return to Site
+            </button>
+          </div>
         </div>
       </motion.div>
     </div>

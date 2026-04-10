@@ -43,7 +43,7 @@ const About = () => {
             className="relative aspect-[4/5] rounded-[3rem] overflow-hidden shadow-2xl"
           >
             <img 
-              src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=1000" 
+              src="/nana-about.jpg" 
               alt="Nana" 
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
