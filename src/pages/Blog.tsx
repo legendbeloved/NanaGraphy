@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Search, Filter, ArrowRight } from 'lucide-react';
 import { CATEGORIES } from '../constants';
@@ -6,13 +6,32 @@ import { Category } from '../types';
 import { cn, formatDate } from '../utils';
 import { Link } from 'react-router-dom';
 
-import { storage } from '../services/storageService';
+import { listPosts, PostRow } from '../services/supabaseAdmin';
 
 const Blog = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [posts, setPosts] = useState<any[]>([]);
 
-  const posts = storage.getPublishedPosts();
+  useEffect(() => {
+    async function loadPosts() {
+      try {
+        const data = await listPosts('published');
+        setPosts(data.map((post: PostRow) => ({
+          id: post.id,
+          title: post.title,
+          slug: post.slug,
+          excerpt: post.excerpt || '',
+          coverImage: post.cover_image || 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&q=80&w=800',
+          category: post.category_id || 'Editorial',
+          createdAt: new Date(post.created_at)
+        })));
+      } catch (err) {
+        console.error('Failed to load posts', err);
+      }
+    }
+    loadPosts();
+  }, []);
 
   const filteredPosts = posts.filter(post => {
     const matchesCategory = selectedCategory === 'All' || post.category === selectedCategory;
@@ -47,7 +66,7 @@ const Blog = () => {
           onClick={() => setSelectedCategory('All')}
           className={cn(
             'px-6 py-2 rounded-full text-sm font-medium transition-all border whitespace-nowrap',
-            selectedCategory === 'All' ? 'bg-ink text-cream border-ink' : 'border-black/10 hover:border-ink'
+            selectedCategory === 'All' ? 'bg-ink text-cream dark:bg-cream dark:text-ink border-ink' : 'border-black/10 hover:border-ink'
           )}
         >
           All Stories
@@ -58,7 +77,7 @@ const Blog = () => {
             onClick={() => setSelectedCategory(category)}
             className={cn(
               'px-6 py-2 rounded-full text-sm font-medium transition-all border whitespace-nowrap',
-              selectedCategory === category ? 'bg-ink text-cream border-ink' : 'border-black/10 hover:border-ink'
+              selectedCategory === category ? 'bg-ink text-cream dark:bg-cream dark:text-ink border-ink' : 'border-black/10 hover:border-ink'
             )}
           >
             {category}

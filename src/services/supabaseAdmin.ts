@@ -162,6 +162,12 @@ export async function getPostById(id: string) {
   return data as PostRow;
 }
 
+export async function getPostBySlug(slug: string) {
+  const { data, error } = await supabase.from('posts').select('*').eq('slug', slug).single();
+  if (error) throw error;
+  return data as PostRow;
+}
+
 export async function createPost(input: Omit<PostRow, 'id' | 'created_at' | 'updated_at'>) {
   const { data, error } = await supabase.from('posts').insert(input).select('*').single();
   if (error) throw error;
@@ -266,3 +272,40 @@ export async function listNewsletterSubscribers() {
   return (data || []) as NewsletterSubscriberRow[];
 }
 
+export type SiteSettingsRow = {
+  id: number;
+  hero_title: string;
+  hero_subtitle: string;
+  contact_email: string;
+  social_links?: { platform: string; url: string }[];
+  about_content?: {
+    hero_title: string;
+    paragraph_1: string;
+    paragraph_2: string;
+    image_url: string;
+    stats: { value: string; label: string }[];
+  };
+  updated_at: string;
+};
+
+export async function getSiteSettings() {
+  const { data, error } = await supabase.from('site_settings').select('*').eq('id', 1).single();
+  if (error) {
+    if (error.code === 'PGRST116') return null; 
+    throw error;
+  }
+  return data as SiteSettingsRow;
+}
+
+export async function updateSiteSettings(updates: Partial<SiteSettingsRow>) {
+  const payload = { id: 1, ...updates, updated_at: new Date().toISOString() };
+  const { data, error } = await supabase.from('site_settings').upsert(payload, { onConflict: 'id' }).select('*').single();
+  if (error) throw error;
+  return data as SiteSettingsRow;
+}
+
+export async function updateAdminPassword(password: string) {
+  const { data, error } = await supabase.auth.updateUser({ password });
+  if (error) throw error;
+  return data;
+}

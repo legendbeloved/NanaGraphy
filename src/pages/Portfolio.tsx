@@ -1,22 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Maximize2, Filter } from 'lucide-react';
 import { CATEGORIES } from '../constants';
 import { Category } from '../types';
 import { cn } from '../utils';
 
-import { storage } from '../services/storageService';
+import { listPortfolioItems, PortfolioItemRow } from '../services/supabaseAdmin';
 
 const Portfolio = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [portfolioItems, setPortfolioItems] = useState<any[]>([]);
 
-  const portfolioItems = storage.getPortfolio().map(item => ({
-    id: item.id,
-    url: item.imageUrl,
-    category: item.category,
-    title: item.title
-  }));
+  useEffect(() => {
+    async function loadPortfolio() {
+      try {
+        const items = await listPortfolioItems();
+        setPortfolioItems(items.map((item: PortfolioItemRow) => ({
+          id: item.id,
+          url: item.images?.[0] || 'https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&q=80&w=1000',
+          category: item.category || 'General',
+          title: item.title
+        })));
+      } catch (err) {
+        console.error('Failed to load portfolio items', err);
+      }
+    }
+    loadPortfolio();
+  }, []);
 
   const filteredItems = selectedCategory === 'All' 
     ? portfolioItems 
@@ -36,7 +47,7 @@ const Portfolio = () => {
             onClick={() => setSelectedCategory('All')}
             className={cn(
               'px-6 py-2 rounded-full text-sm font-medium transition-all border',
-              selectedCategory === 'All' ? 'bg-ink text-cream border-ink' : 'border-black/10 hover:border-ink'
+              selectedCategory === 'All' ? 'bg-ink text-cream dark:bg-cream dark:text-ink border-ink' : 'border-black/10 hover:border-ink'
             )}
           >
             All
@@ -47,7 +58,7 @@ const Portfolio = () => {
               onClick={() => setSelectedCategory(category)}
               className={cn(
                 'px-6 py-2 rounded-full text-sm font-medium transition-all border',
-                selectedCategory === category ? 'bg-ink text-cream border-ink' : 'border-black/10 hover:border-ink'
+                selectedCategory === category ? 'bg-ink text-cream dark:bg-cream dark:text-ink border-ink' : 'border-black/10 hover:border-ink'
               )}
             >
               {category}

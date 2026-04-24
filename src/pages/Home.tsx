@@ -1,18 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, Star, Quote } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import { storage } from '../services/storageService';
+import { listPosts, PostRow, getSiteSettings, SiteSettingsRow } from '../services/supabaseAdmin';
 
 const Home = () => {
-  const featuredPosts = storage.getPublishedPosts().slice(0, 3).map(post => ({
-    id: post.id,
-    title: post.title,
-    category: post.category,
-    image: post.coverImage,
-    date: post.createdAt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-  }));
+  const [featuredPosts, setFeaturedPosts] = useState<any[]>([]);
+  const [siteSettings, setSiteSettings] = useState<SiteSettingsRow | null>(null);
+
+  useEffect(() => {
+    async function fetchPosts() {
+      try {
+        const posts = await listPosts('published');
+        const formatted = posts.slice(0, 3).map((post: PostRow) => ({
+          id: post.id,
+          title: post.title,
+          category: 'Editorial', // Simplistic mapping since Supabase uses category_id, we default for now
+          image: post.cover_image || 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&q=80&w=800',
+          date: new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        }));
+        setFeaturedPosts(formatted);
+      } catch (err) {
+        console.error('Failed to load featured posts', err);
+      }
+    }
+    async function fetchSettings() {
+      try {
+        const settings = await getSiteSettings();
+        if (settings) setSiteSettings(settings);
+      } catch (err) {
+        console.error('Failed to load site settings', err);
+      }
+    }
+    fetchPosts();
+    fetchSettings();
+  }, []);
 
   return (
     <div className="space-y-32 pb-20">
@@ -38,7 +61,16 @@ const Home = () => {
                 transition={{ delay: 0.2 }}
                 className="text-7xl md:text-9xl font-display font-light tracking-tighter leading-[0.85]"
               >
-                Life in Every <br /> <span className="italic">Frame</span>
+                {siteSettings?.hero_title ? (
+                  siteSettings.hero_title.split(/\\n|\n/).map((line, i, arr) => (
+                    <React.Fragment key={i}>
+                      {i > 0 && <br />}
+                      {i === arr.length - 1 ? <span className="italic">{line.trim()}</span> : line.trim()}
+                    </React.Fragment>
+                  ))
+                ) : (
+                  <>Life in Every <br /> <span className="italic">Frame</span></>
+                )}
               </motion.h1>
               <motion.p 
                 initial={{ opacity: 0 }}
@@ -46,7 +78,7 @@ const Home = () => {
                 transition={{ delay: 0.4 }}
                 className="text-lg md:text-xl font-sans font-light tracking-[0.3em] uppercase opacity-90"
               >
-                Editorial Lifestyle Photography by Nana
+                {siteSettings?.hero_subtitle || 'Editorial Lifestyle Photography by Nana'}
               </motion.p>
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
@@ -127,7 +159,7 @@ const Home = () => {
       {/* Booking CTA */}
       <section className="px-6 pb-32">
         <div className="max-w-7xl mx-auto">
-          <div className="relative bg-ink text-cream rounded-[3rem] p-12 md:p-24 overflow-hidden text-center space-y-8">
+          <div className="relative bg-ink text-cream dark:bg-cream dark:text-ink rounded-[3rem] p-12 md:p-24 overflow-hidden text-center space-y-8">
             <div className="absolute inset-0 opacity-20">
               <img 
                 src="https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&q=80&w=2000" 

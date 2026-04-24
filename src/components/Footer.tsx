@@ -1,8 +1,44 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Instagram, Twitter, Mail, Camera } from 'lucide-react';
+import { Instagram, Twitter, Mail, Camera, Youtube, Facebook, Linkedin, Link as LinkIcon } from 'lucide-react';
+import { getSiteSettings } from '../services/supabaseAdmin';
+
+const TikTokIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+  </svg>
+);
+
+const getPlatformIcon = (platform: string) => {
+  switch (platform.toLowerCase()) {
+    case 'instagram': return Instagram;
+    case 'twitter': return Twitter;
+    case 'youtube': return Youtube;
+    case 'facebook': return Facebook;
+    case 'linkedin': return Linkedin;
+    case 'email': return Mail;
+    case 'tiktok': return TikTokIcon;
+    default: return LinkIcon;
+  }
+};
 
 const Footer = () => {
+  const [socialLinks, setSocialLinks] = useState<{platform: string; url: string}[]>([]);
+
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const settings = await getSiteSettings();
+        if (settings && settings.social_links) {
+          setSocialLinks(settings.social_links);
+        }
+      } catch (err) {
+        console.error('Failed to load site settings for footer', err);
+      }
+    }
+    fetchSettings();
+  }, []);
+
   return (
     <footer className="bg-sand/30 dark:bg-ink/50 border-t border-black/5 dark:border-white/5 pt-16 pb-8 px-6">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
@@ -38,16 +74,22 @@ const Footer = () => {
 
         <div>
           <h4 className="font-display text-lg mb-6">Connect</h4>
-          <div className="flex space-x-4 mb-6">
-            <a href="#" className="p-2 rounded-full border border-black/10 dark:border-white/10 hover:bg-ink hover:text-cream transition-all">
-              <Instagram className="w-4 h-4" />
-            </a>
-            <a href="#" className="p-2 rounded-full border border-black/10 dark:border-white/10 hover:bg-ink hover:text-cream transition-all">
-              <Twitter className="w-4 h-4" />
-            </a>
-            <a href="#" className="p-2 rounded-full border border-black/10 dark:border-white/10 hover:bg-ink hover:text-cream transition-all">
-              <Mail className="w-4 h-4" />
-            </a>
+          <div className="flex flex-wrap gap-4 mb-6">
+            {socialLinks.length > 0 ? (
+              socialLinks.map((link, i) => {
+                const Icon = getPlatformIcon(link.platform);
+                const href = link.platform.toLowerCase() === 'email' && !link.url.startsWith('mailto:') 
+                  ? `mailto:${link.url}` 
+                  : link.url;
+                return (
+                  <a key={i} href={href} target="_blank" rel="noopener noreferrer" className="p-2 rounded-full border border-black/10 dark:border-white/10 hover:bg-ink hover:text-cream dark:hover:bg-cream dark:hover:text-ink transition-all">
+                    <Icon className="w-4 h-4" />
+                  </a>
+                );
+              })
+            ) : (
+                <div className="text-sm opacity-50 italic">No social links</div>
+            )}
           </div>
           <p className="text-xs opacity-50">
             © {new Date().getFullYear()} NanaGraphy. All rights reserved.

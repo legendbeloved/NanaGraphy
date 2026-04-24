@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion, useScroll, useSpring } from 'motion/react';
 import { ArrowLeft, Share2, Clock, User, MessageCircle } from 'lucide-react';
 import { formatDate } from '../utils';
 
-import { storage } from '../services/storageService';
+import { getPostBySlug, PostRow } from '../services/supabaseAdmin';
 
 const BlogPost = () => {
   const { slug } = useParams();
@@ -15,13 +15,44 @@ const BlogPost = () => {
     restDelta: 0.001
   });
 
-  const post = storage.getPublishedPosts().find(p => p.slug === slug);
+  const [post, setPost] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    async function loadPost() {
+      if (!slug) return;
+      try {
+        const data = await getPostBySlug(slug);
+        setPost({
+          id: data.id,
+          title: data.title,
+          category: data.category_id || 'Editorial',
+          createdAt: new Date(data.created_at),
+          coverImage: data.cover_image || 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&q=80&w=800',
+          content: data.body
+        });
+      } catch (err) {
+        console.error("Post not found", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadPost();
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <div className="pt-32 pb-20 px-6 text-center space-y-8">
+        <h1 className="text-4xl font-display opacity-50">Loading...</h1>
+      </div>
+    );
+  }
 
   if (!post) {
     return (
       <div className="pt-32 pb-20 px-6 text-center space-y-8">
         <h1 className="text-4xl font-display">Post not found</h1>
-        <Link to="/blog" className="btn-primary inline-block">Back to Journal</Link>
+        <Link to="/blog" className="px-8 py-3 bg-ink text-cream dark:bg-cream dark:text-ink rounded-full inline-block font-medium">Back to Journal</Link>
       </div>
     );
   }

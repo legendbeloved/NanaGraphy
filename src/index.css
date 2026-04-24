@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-display: "Cormorant Garamond", serif;
   --font-sans: "DM Sans", sans-serif;
@@ -27,7 +29,7 @@
 
 @layer components {
   .glass {
-    @apply backdrop-blur-md bg-white/10 border border-white/20 shadow-xl;
+    @apply backdrop-blur-md bg-white/70 border border-white/40 shadow-xl;
   }
 
   .glass-dark {

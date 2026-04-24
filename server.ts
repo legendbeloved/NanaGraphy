@@ -3,10 +3,15 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { Resend } from "resend";
 import dotenv from "dotenv";
+import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || process.env.VITE_RESEND_API_KEY);
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://placeholder.supabase.co";
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || "placeholder-key";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function startServer() {
   const app = express();
@@ -19,39 +24,46 @@ async function startServer() {
     const bookingData = req.body;
 
     try {
-      // 1. Send confirmation email to client
-      await resend.emails.send({
-        from: "NanaGraphy <bookings@nanagraphy.com>",
-        to: bookingData.email,
-        subject: "We've received your inquiry! - NanaGraphy",
-        html: `
-          <h1>Hello ${bookingData.fullName.split(' ')[0]},</h1>
-          <p>Thank you for reaching out to NanaGraphy. We've received your inquiry for a <strong>${bookingData.serviceType}</strong> session.</p>
-          <p>Nana will review your vision and get back to you within 48 hours.</p>
-          <hr />
-          <p><strong>Summary:</strong></p>
-          <ul>
-            <li>Date: ${bookingData.preferredDate}</li>
-            <li>Time: ${bookingData.preferredTime}</li>
-            <li>Location: ${bookingData.location}</li>
-          </ul>
-          <p>Best regards,<br />The NanaGraphy Team</p>
-        `,
+      // 0. Save booking to Supabase database
+      let extraNotes = bookingData.isGift 
+        ? `GIFT for: ${bookingData.giftRecipientName} (Phone: ${bookingData.giftRecipientPhone}). Message: ${bookingData.giftMessage}` 
+        : "";
+
+      if (bookingData.datePreference && bookingData.datePreference.length > 1) {
+        extraNotes += ` | Additional preferred dates: ${bookingData.datePreference.map((d: string) => new Date(d).toLocaleDateString()).join(", ")}`;
+      }
+
+      const preferredDate = bookingData.datePreference && bookingData.datePreference.length > 0 
+        ? new Date(bookingData.datePreference[0]).toISOString().split('T')[0] 
+        : null;
+
+      const { error: dbError } = await supabase.from('bookings').insert({
+        client_name: bookingData.clientName,
+        email: 'no-email-provided@m.com',
+        phone: bookingData.clientPhone,
+        service_type: bookingData.serviceType,
+        preferred_date: preferredDate,
+        vision_description: bookingData.message,
+        additional_notes: extraNotes.trim(),
+        status: 'pending'
       });
 
-      // 2. Send notification email to Nana
+      if (dbError) {
+        console.error("Database insert error:", dbError);
+      }
+
+      // 1. Send notification email to Nana
       await resend.emails.send({
         from: "NanaGraphy System <system@nanagraphy.com>",
         to: "legendbeloved@gmail.com", // Nana's email
-        subject: `New Booking Inquiry: ${bookingData.fullName}`,
+        subject: `New Booking Inquiry: ${bookingData.clientName}`,
         html: `
           <h1>New Inquiry Received</h1>
-          <p><strong>Client:</strong> ${bookingData.fullName} (${bookingData.email})</p>
+          <p><strong>Client:</strong> ${bookingData.clientName} (Phone: ${bookingData.clientPhone})</p>
           <p><strong>Service:</strong> ${bookingData.serviceType}</p>
-          <p><strong>Date:</strong> ${bookingData.preferredDate}</p>
-          <p><strong>Vision:</strong> ${bookingData.vision}</p>
-          <p><strong>Budget:</strong> ${bookingData.budget}</p>
-          <p><strong>Styles:</strong> ${bookingData.styles.join(", ")}</p>
+          <p><strong>Preferred Dates:</strong> ${bookingData.datePreference && bookingData.datePreference.length > 0 ? bookingData.datePreference.map((d: string) => new Date(d).toLocaleDateString()).join(", ") : 'None'}</p>
+          <p><strong>Vision:</strong> ${bookingData.message}</p>
+          <p><strong>Gift Details:</strong> ${extraNotes || 'None'}</p>
         `,
       });
 

@@ -1,8 +1,34 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Camera, Heart, Globe, Award } from 'lucide-react';
+import { getSiteSettings } from '../services/supabaseAdmin';
 
 const About = () => {
+  const [aboutContent, setAboutContent] = useState({
+    hero_title: 'Meet Nana',
+    paragraph_1: "I believe that every moment, no matter how small, holds a story worth telling. My journey with photography began with a simple film camera and a curiosity for the way light dances across a room.",
+    paragraph_2: "Over the last decade, I've dedicated my life to capturing the authentic, unscripted beauty of human connection. My style is editorial yet intimate, focused on the raw emotions that make our lives extraordinary.",
+    image_url: "/nana-about.jpg",
+    stats: [
+      { value: "2+", label: "Years Experience" },
+      { value: "50+", label: "Sessions Captured" }
+    ]
+  });
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const settings = await getSiteSettings();
+        if (settings && settings.about_content) {
+          setAboutContent({ ...aboutContent, ...settings.about_content });
+        }
+      } catch (err) {
+        console.error('Failed to load about content', err);
+      }
+    }
+    load();
+  }, []);
+
   return (
     <div className="pt-32 pb-20 space-y-32">
       {/* Hero Section */}
@@ -16,23 +42,21 @@ const About = () => {
           >
             <div className="space-y-4">
               <span className="text-xs font-medium uppercase tracking-[0.2em] opacity-50">The Story</span>
-              <h1 className="text-6xl md:text-8xl font-display leading-[0.9]">Meet Nana</h1>
+              <h1 className="text-6xl md:text-8xl font-display leading-[0.9]">{aboutContent.hero_title}</h1>
             </div>
-            <p className="text-xl font-light leading-relaxed opacity-80">
-              I believe that every moment, no matter how small, holds a story worth telling. My journey with photography began with a simple film camera and a curiosity for the way light dances across a room.
+            <p className="text-xl font-light leading-relaxed opacity-80 whitespace-pre-wrap">
+              {aboutContent.paragraph_1}
             </p>
-            <p className="text-lg font-light leading-relaxed opacity-70">
-              Over the last decade, I've dedicated my life to capturing the authentic, unscripted beauty of human connection. My style is editorial yet intimate, focused on the raw emotions that make our lives extraordinary.
+            <p className="text-lg font-light leading-relaxed opacity-70 whitespace-pre-wrap">
+              {aboutContent.paragraph_2}
             </p>
             <div className="pt-4 grid grid-cols-2 gap-8">
-              <div className="space-y-2">
-                <h4 className="text-3xl font-display">10+</h4>
-                <p className="text-xs uppercase tracking-widest opacity-50">Years Experience</p>
-              </div>
-              <div className="space-y-2">
-                <h4 className="text-3xl font-display">500+</h4>
-                <p className="text-xs uppercase tracking-widest opacity-50">Sessions Captured</p>
-              </div>
+              {aboutContent.stats?.map((stat, i) => (
+                <div key={i} className="space-y-2">
+                  <h4 className="text-3xl font-display">{stat.value}</h4>
+                  <p className="text-xs uppercase tracking-widest opacity-50">{stat.label}</p>
+                </div>
+              ))}
             </div>
           </motion.div>
 
@@ -43,7 +67,7 @@ const About = () => {
             className="relative aspect-[4/5] rounded-[3rem] overflow-hidden shadow-2xl"
           >
             <img 
-              src="/nana-about.jpg" 
+              src={aboutContent.image_url} 
               alt="Nana" 
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
@@ -93,10 +117,10 @@ const About = () => {
             <p className="text-lg font-light opacity-70">Recognized by industry leaders for editorial excellence.</p>
           </div>
           <div className="flex flex-wrap justify-center gap-12 opacity-30 grayscale contrast-125">
-            <span className="text-2xl font-display tracking-widest uppercase">Vogue</span>
-            <span className="text-2xl font-display tracking-widest uppercase">Kinfolk</span>
-            <span className="text-2xl font-display tracking-widest uppercase">Cereal</span>
-            <span className="text-2xl font-display tracking-widest uppercase">Bazaar</span>
+            <span className="text-2xl font-display tracking-widest uppercase">Djameel Apparels</span>
+            <span className="text-2xl font-display tracking-widest uppercase">Diyah’s Vouge</span>
+            <span className="text-2xl font-display tracking-widest uppercase">B Aqcess</span>
+            <span className="text-2xl font-display tracking-widest uppercase">Lush n Rush</span>
           </div>
         </div>
       </section>

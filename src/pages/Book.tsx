@@ -3,20 +3,18 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Calendar as CalendarIcon, User, Mail, MessageSquare, ArrowRight, ArrowLeft, CheckCircle2, Star, Gift } from 'lucide-react';
+import { Calendar as CalendarIcon, User, Phone, MessageSquare, ArrowRight, ArrowLeft, CheckCircle2, Star, Gift } from 'lucide-react';
 import { AVENTA_PACKAGES } from '../constants';
 import { cn } from '../utils';
-import { storage } from '../services/storageService';
-import { sendBookingNotification } from '../services/emailService';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/style.css'; // modern react-day-picker styles
 
 const bookingSchema = z.object({
   clientName: z.string().min(2, 'Name is required'),
-  clientEmail: z.string().email('Invalid email address'),
+  clientPhone: z.string().min(5, 'Valid phone number required'),
   isGift: z.boolean(),
   giftRecipientName: z.string().optional(),
-  giftRecipientEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
+  giftRecipientPhone: z.string().min(5, 'Valid phone number required').optional().or(z.literal('')),
   giftMessage: z.string().optional(),
   serviceType: z.enum(['Basic', 'Standard', 'Premium']),
   datePreference: z.array(z.date()).min(1, 'Please select at least one date'),
@@ -30,11 +28,11 @@ const bookingSchema = z.object({
         path: ['giftRecipientName']
       });
     }
-    if (!data.giftRecipientEmail || !data.giftRecipientEmail.includes('@')) {
+    if (!data.giftRecipientPhone || data.giftRecipientPhone.length < 5) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Valid recipient email required',
-        path: ['giftRecipientEmail']
+        message: 'Valid recipient phone required',
+        path: ['giftRecipientPhone']
       });
     }
   }
@@ -60,9 +58,9 @@ const Book = () => {
   const nextStep = async () => {
     let fieldsToValidate: (keyof BookingFormData)[] = [];
     if (step === 1) {
-      fieldsToValidate = ['clientName', 'clientEmail'];
+      fieldsToValidate = ['clientName', 'clientPhone'];
       if (isGift) {
-        fieldsToValidate.push('giftRecipientName', 'giftRecipientEmail');
+        fieldsToValidate.push('giftRecipientName', 'giftRecipientPhone');
       }
     }
     if (step === 2) fieldsToValidate = ['serviceType', 'datePreference'];
@@ -72,19 +70,22 @@ const Book = () => {
   };
 
   const onSubmit = async (data: any) => {
-    const booking = {
-      id: crypto.randomUUID(),
-      ...data,
-      status: 'Pending' as const,
-      createdAt: new Date()
-    };
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
 
-    storage.saveBooking(booking);
+      if (!response.ok) {
+        throw new Error('Failed to submit booking');
+      }
 
-    // Send email notification
-    await sendBookingNotification(booking);
-
-    setIsSubmitted(true);
+      setIsSubmitted(true);
+    } catch (error) {
+      console.error('Error submitting booking:', error);
+      alert('There was an issue sending your inquiry. Please try again.');
+    }
   };
 
   if (isSubmitted) {
@@ -106,7 +107,7 @@ const Book = () => {
           </div>
           <button
             onClick={() => window.location.href = '/'}
-            className="w-full py-4 bg-ink text-cream rounded-full font-medium hover:scale-105 transition-transform"
+            className="w-full py-4 bg-ink text-cream dark:bg-cream dark:text-ink rounded-full font-medium hover:scale-105 transition-transform"
           >
             Return Home
           </button>
@@ -192,16 +193,17 @@ const Book = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Email Address</label>
+                      <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Phone Number (WhatsApp)</label>
                       <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
                         <input
-                          {...register('clientEmail')}
-                          placeholder="hello@example.com"
+                          type="tel"
+                          {...register('clientPhone')}
+                          placeholder="+1 (555) 000-0000"
                           className="w-full pl-12 pr-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
                         />
                       </div>
-                      {errors.clientEmail && <p className="text-xs text-red-500 ml-4">{errors.clientEmail.message}</p>}
+                      {errors.clientPhone && <p className="text-xs text-red-500 ml-4">{errors.clientPhone.message}</p>}
                     </div>
 
                     <div className="pt-4 pb-2">
@@ -233,13 +235,14 @@ const Book = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Recipient Email</label>
+                          <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Recipient Phone (WhatsApp)</label>
                           <input
-                            {...register('giftRecipientEmail')}
-                            placeholder="Recipient Email"
+                            type="tel"
+                            {...register('giftRecipientPhone')}
+                            placeholder="+1 (555) 000-0000"
                             className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
                           />
-                          {errors.giftRecipientEmail && <p className="text-xs text-red-500 ml-4">{errors.giftRecipientEmail.message}</p>}
+                          {errors.giftRecipientPhone && <p className="text-xs text-red-500 ml-4">{errors.giftRecipientPhone.message}</p>}
                         </div>
 
                         <div className="space-y-2">
@@ -347,7 +350,7 @@ const Book = () => {
                   <button
                     type="button"
                     onClick={nextStep}
-                    className="flex items-center space-x-2 px-8 py-4 bg-ink text-cream rounded-full font-medium hover:scale-105 transition-transform shadow-lg"
+                    className="flex items-center space-x-2 px-8 py-4 bg-ink text-cream dark:bg-cream dark:text-ink rounded-full font-medium hover:scale-105 transition-transform shadow-lg"
                   >
                     <span>Next</span>
                     <ArrowRight className="w-4 h-4" />
@@ -355,7 +358,7 @@ const Book = () => {
                 ) : (
                   <button
                     type="submit"
-                    className="px-10 py-4 bg-ink text-cream rounded-full font-medium hover:scale-105 transition-transform shadow-xl"
+                    className="px-10 py-4 bg-ink text-cream dark:bg-cream dark:text-ink rounded-full font-medium hover:scale-105 transition-transform shadow-xl"
                   >
                     Send Inquiry
                   </button>

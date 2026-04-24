@@ -14,46 +14,237 @@ import {
   ToggleLeft,
   ToggleRight,
   X,
-  Mail
+  Mail,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import BlogPostEditor from '../components/BlogPostEditor';
-import { storage } from '../services/storageService';
+import { 
+  listPosts, 
+  listPortfolioItems, 
+  listBookings, 
+  createPost, 
+  updatePost, 
+  softDeletePost as deletePost, 
+  setPostPublishState,
+  createPortfolioItem, 
+  softDeletePortfolioItem as deletePortfolioItem,
+  updateBookingStatus,
+  adminSignOut,
+  getSiteSettings,
+  updateSiteSettings,
+  updateAdminPassword,
+  uploadToStorage
+} from '../services/supabaseAdmin';
 import { formatDate, cn } from '../utils';
 import { CATEGORIES } from '../constants';
 import type { BlogPost, Booking, Category, PortfolioItem } from '../types';
 
+const defaultAboutContent = {
+  hero_title: 'Meet Nana',
+  paragraph_1: "I believe that every moment, no matter how small, holds a story worth telling. My journey with photography began with a simple film camera and a curiosity for the way light dances across a room.",
+  paragraph_2: "Over the last decade, I've dedicated my life to capturing the authentic, unscripted beauty of human connection. My style is editorial yet intimate, focused on the raw emotions that make our lives extraordinary.",
+  image_url: "/nana-about.jpg",
+  stats: [
+    { value: "10+", label: "Years Experience" },
+    { value: "500+", label: "Sessions Captured" }
+  ]
+};
+
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState<'posts' | 'portfolio' | 'bookings'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'portfolio' | 'bookings' | 'settings'>('posts');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const navigate = useNavigate();
-  const [posts, setPosts] = useState<BlogPost[]>(() => storage.getPosts());
-  const [portfolio, setPortfolio] = useState<PortfolioItem[]>(() => storage.getPortfolio());
-  const [bookings, setBookings] = useState<Booking[]>(() => storage.getBookings());
+  const [posts, setPosts] = useState<any[]>([]);
+  const [portfolio, setPortfolio] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Theme toggle state
+  const [isDarkMode, setIsDarkMode] = useState(
+    document.documentElement.classList.contains('dark')
+  );
+
+  const toggleTheme = () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    setIsDarkMode(isDark);
+  };
 
   const [isPortfolioModalOpen, setIsPortfolioModalOpen] = useState(false);
   const [portfolioTitle, setPortfolioTitle] = useState('');
   const [portfolioCategory, setPortfolioCategory] = useState<Category>('Lifestyle');
   const [portfolioImageUrl, setPortfolioImageUrl] = useState('');
 
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
 
-  useEffect(() => {
-    if (!storage.isLoggedIn()) {
-      navigate('/login');
+  const [siteSettings, setSiteSettings] = useState({ 
+    hero_title: '', 
+    hero_subtitle: '', 
+    contact_email: '',
+    social_links: [] as { platform: string; url: string }[],
+    about_content: defaultAboutContent
+  });
+  const [newPassword, setNewPassword] = useState('');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isUploadingAboutImage, setIsUploadingAboutImage] = useState(false);
+  const [isUploadingPortfolioImage, setIsUploadingPortfolioImage] = useState(false);
+
+  const refreshData = async () => {
+    try {
+      const [p, port, b, settings] = await Promise.all([
+        listPosts('all'),
+        listPortfolioItems(),
+        listBookings('all'),
+        getSiteSettings()
+      ]);
+      setPosts(p.map(post => ({
+        id: post.id,
+        title: post.title,
+        slug: post.slug,
+        excerpt: post.excerpt,
+        category: post.category_id || 'Editorial',
+        createdAt: new Date(post.created_at),
+        updatedAt: new Date(post.updated_at),
+        publishedAt: post.published_at ? new Date(post.published_at) : new Date(),
+        published: post.status === 'published',
+        coverImage: post.cover_image,
+        content: post.body,
+      })));
+      setPortfolio(port.map(item => ({
+        id: item.id,
+        url: item.images?.[0] || 'https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&q=80&w=1000',
+        category: item.category || 'Editorial',
+        title: item.title,
+      })));
+      setBookings(b.map(booking => ({
+        id: booking.id,
+        clientName: booking.client_name,
+        clientEmail: booking.email,
+        serviceType: booking.service_type,
+        datePreference: booking.preferred_date ? [new Date(booking.preferred_date)] : [],
+        isGift: booking.additional_notes?.includes('GIFT for:'),
+        message: booking.vision_description,
+        status: booking.status.charAt(0).toUpperCase() + booking.status.slice(1),
+        createdAt: new Date(booking.created_at),
+      })));
+      
+      if (settings) {
+        setSiteSettings({
+          hero_title: settings.hero_title || '',
+          hero_subtitle: settings.hero_subtitle || '',
+          contact_email: settings.contact_email || '',
+          social_links: settings.social_links || [],
+          about_content: settings.about_content || defaultAboutContent
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
     }
-  }, [navigate]);
-
-  const refreshData = () => {
-    setPosts(storage.getPosts());
-    setPortfolio(storage.getPortfolio());
-    setBookings(storage.getBookings());
   };
 
   useEffect(() => {
     refreshData();
   }, []);
+
+  const handleSaveSiteSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      await updateSiteSettings(siteSettings);
+      alert('Site settings updated successfully');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to update site settings');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleAddSocialLink = () => {
+    setSiteSettings(prev => ({
+      ...prev,
+      social_links: [...prev.social_links, { platform: 'Instagram', url: '' }]
+    }));
+  };
+
+  const handleUpdateSocialLink = (index: number, key: 'platform' | 'url', value: string) => {
+    setSiteSettings(prev => ({
+      ...prev,
+      social_links: prev.social_links.map((link, i) => i === index ? { ...link, [key]: value } : link)
+    }));
+  };
+
+  const handleRemoveSocialLink = (index: number) => {
+    setSiteSettings(prev => ({
+      ...prev,
+      social_links: prev.social_links.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleAddAboutStat = () => {
+    setSiteSettings(prev => ({
+      ...prev,
+      about_content: { ...prev.about_content, stats: [...(prev.about_content.stats || []), { value: '', label: '' }] }
+    }));
+  };
+
+  const handleUpdateAboutStat = (index: number, key: 'value' | 'label', val: string) => {
+    setSiteSettings(prev => ({
+      ...prev,
+      about_content: {
+        ...prev.about_content,
+        stats: prev.about_content.stats.map((st, i) => i === index ? { ...st, [key]: val } : st)
+      }
+    }));
+  };
+
+  const handleRemoveAboutStat = (index: number) => {
+    setSiteSettings(prev => ({
+      ...prev,
+      about_content: { ...prev.about_content, stats: prev.about_content.stats.filter((_, i) => i !== index) }
+    }));
+  };
+
+  const handleUploadAboutImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingAboutImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `about-${Date.now()}.${fileExt}`;
+      const publicUrl = await uploadToStorage('portfolio', filePath, file);
+      setSiteSettings(p => ({
+        ...p,
+        about_content: { ...p.about_content, image_url: publicUrl }
+      }));
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to upload image: ' + err.message);
+    } finally {
+      setIsUploadingAboutImage(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      alert('Password must be at least 6 characters');
+      return;
+    }
+    setIsSavingSettings(true);
+    try {
+      await updateAdminPassword(newPassword);
+      alert('Password updated successfully. You will stay signed in.');
+      setNewPassword('');
+    } catch (e: any) {
+      console.error(e);
+      alert('Failed to update password: ' + e.message);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   const handleCreateNew = () => {
     if (activeTab === 'posts') {
@@ -69,66 +260,116 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleSavePost = (postData: any) => {
-    const post = {
-      id: editingPost?.id || crypto.randomUUID(),
-      ...postData,
-      slug: postData.title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
-      authorId: 'admin',
-      createdAt: editingPost?.createdAt || new Date(),
-      updatedAt: new Date(),
-      published: postData.published ?? true,
-      publishedAt: postData.publishedAt || new Date()
-    };
-    storage.savePost(post);
-    setIsEditorOpen(false);
-    setEditingPost(null);
-    refreshData();
+  const handleSavePost = async (postData: any) => {
+    try {
+      const slug = postData.title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+      const backendData = {
+        title: postData.title,
+        slug: slug,
+        body: postData.content,
+        excerpt: postData.excerpt,
+        cover_image: postData.coverImage,
+        status: postData.published ? 'published' : 'draft',
+      };
+      
+      if (editingPost?.id) {
+        await updatePost(editingPost.id, backendData as any);
+      } else {
+        await createPost(backendData as any);
+      }
+      setIsEditorOpen(false);
+      setEditingPost(null);
+      refreshData();
+    } catch (e) {
+      console.error(e);
+      alert('Failed to save post');
+    }
   };
 
-  const handleLogout = () => {
-    storage.logout();
+  const handleLogout = async () => {
+    await adminSignOut();
     navigate('/login');
   };
 
-  const handleDeletePost = (post: BlogPost) => {
+  const handleDeletePost = async (post: any) => {
     const ok = window.confirm(`Delete "${post.title}"? This cannot be undone.`);
     if (!ok) return;
-    storage.deletePost(post.id);
-    refreshData();
+    try {
+      await deletePost(post.id);
+      refreshData();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleTogglePostPublished = (post: BlogPost) => {
-    storage.setPostPublished(post.id, !post.published);
-    refreshData();
+  const handleTogglePostPublished = async (post: any) => {
+    try {
+      await setPostPublishState(post.id, post.published ? 'draft' : 'published');
+      refreshData();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleCreatePortfolioItem = () => {
+  const handleUploadPortfolioImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingPortfolioImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `portfolio-${Date.now()}.${fileExt}`;
+      const publicUrl = await uploadToStorage('portfolio', filePath, file);
+      setPortfolioImageUrl(publicUrl);
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to upload image: ' + err.message);
+    } finally {
+      setIsUploadingPortfolioImage(false);
+    }
+  };
+
+  const handleCreatePortfolioItem = async () => {
     if (!portfolioTitle.trim() || !portfolioImageUrl.trim()) {
-      alert('Please provide a title and image URL.');
+      alert('Please provide a title and upload an image.');
       return;
     }
-    storage.savePortfolioItem({
-      id: crypto.randomUUID(),
-      title: portfolioTitle.trim(),
-      category: portfolioCategory,
-      imageUrl: portfolioImageUrl.trim(),
-      createdAt: new Date(),
-    });
-    setIsPortfolioModalOpen(false);
-    refreshData();
+    try {
+      await createPortfolioItem({
+        title: portfolioTitle.trim(),
+        category: portfolioCategory,
+        images: [portfolioImageUrl.trim()],
+        image_alts: [],
+        featured: false,
+        sort_order: portfolio.length,
+        description: null,
+        deleted_at: null,
+      });
+      setIsPortfolioModalOpen(false);
+      refreshData();
+    } catch (e) {
+      console.error(e);
+      alert('Failed to create item');
+    }
   };
 
-  const handleDeletePortfolioItem = (item: PortfolioItem) => {
+  const handleDeletePortfolioItem = async (item: any) => {
     const ok = window.confirm(`Remove "${item.title}" from portfolio?`);
     if (!ok) return;
-    storage.deletePortfolioItem(item.id);
-    refreshData();
+    try {
+      await deletePortfolioItem(item.id);
+      refreshData();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleSetBookingStatus = (bookingId: string, status: Booking['status']) => {
-    storage.setBookingStatus(bookingId, status);
-    refreshData();
+  const handleSetBookingStatus = async (bookingId: string, status: any) => {
+    try {
+      await updateBookingStatus(bookingId, status.toLowerCase() as any);
+      refreshData();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const stats = [
@@ -144,7 +385,7 @@ const AdminDashboard = () => {
 
   const createButtonLabel =
     activeTab === 'posts' ? 'Create Post' : activeTab === 'portfolio' ? 'Add Photo' : 'Create New';
-  const createButtonDisabled = activeTab === 'bookings';
+  const createButtonDisabled = activeTab === 'bookings' || activeTab === 'settings';
 
   const statusPillClass = (status: Booking['status']) => {
     if (status === 'Pending') return 'bg-amber-500/10 text-amber-500';
@@ -172,7 +413,7 @@ const AdminDashboard = () => {
                 onClick={() => setActiveTab(item.id as any)}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm transition-all ${
                   activeTab === item.id 
-                    ? 'bg-ink text-cream shadow-lg' 
+                    ? 'bg-ink text-cream dark:bg-cream dark:text-ink shadow-lg' 
                     : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-60'
                 }`}
               >
@@ -184,7 +425,21 @@ const AdminDashboard = () => {
         </div>
 
         <div className="space-y-2 pt-8 border-t border-black/5 dark:border-white/5">
-          <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm opacity-60 hover:opacity-100 transition-opacity">
+          <button 
+            onClick={toggleTheme}
+            className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm opacity-60 hover:opacity-100 transition-opacity"
+          >
+            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('settings')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm transition-all ${
+              activeTab === 'settings' 
+                ? 'bg-ink text-cream dark:bg-cream dark:text-ink shadow-lg' 
+                : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-60'
+            }`}
+          >
             <Settings className="w-4 h-4" />
             <span>Settings</span>
           </button>
@@ -210,7 +465,7 @@ const AdminDashboard = () => {
               "flex items-center space-x-2 px-6 py-2 rounded-full text-sm font-medium transition-transform shadow-lg",
               createButtonDisabled
                 ? "bg-black/10 dark:bg-white/10 text-black/40 dark:text-white/40 cursor-not-allowed"
-                : "bg-ink text-cream hover:scale-105"
+                : "bg-ink text-cream dark:bg-cream dark:text-ink hover:scale-105"
             )}
           >
             <Plus className="w-4 h-4" />
@@ -401,6 +656,228 @@ const AdminDashboard = () => {
                 )}
               </div>
             )}
+
+            {activeTab === 'settings' && (
+              <div className="p-8 space-y-12">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-2xl font-display">Site Configuration</h3>
+                    <p className="text-sm opacity-60">Manage your global homepage hero text and contact email.</p>
+                  </div>
+                  
+                  <div className="grid gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Homepage Hero Title (use \n for line breaks)</label>
+                      <input
+                        value={siteSettings.hero_title}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, hero_title: e.target.value })}
+                        className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Homepage Subtitle</label>
+                      <input
+                        value={siteSettings.hero_subtitle}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, hero_subtitle: e.target.value })}
+                        className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Contact Email</label>
+                      <input
+                        type="email"
+                        value={siteSettings.contact_email}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, contact_email: e.target.value })}
+                        className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
+                      />
+                    </div>
+
+                    <div className="pt-6 border-t border-black/5 dark:border-white/5 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Social Connections</label>
+                        <button onClick={handleAddSocialLink} className="text-xs flex items-center gap-1 opacity-70 hover:opacity-100">
+                          <Plus className="w-3 h-3" /> Add Link
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {siteSettings.social_links.map((link, index) => (
+                          <div key={index} className="flex gap-3 items-center">
+                            <select 
+                              value={link.platform}
+                              onChange={(e) => handleUpdateSocialLink(index, 'platform', e.target.value)}
+                              className="w-1/3 px-4 py-3 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream appearance-none text-sm"
+                            >
+                              <option value="Instagram">Instagram</option>
+                              <option value="TikTok">TikTok</option>
+                              <option value="Twitter">Twitter</option>
+                              <option value="YouTube">YouTube</option>
+                              <option value="Facebook">Facebook</option>
+                              <option value="LinkedIn">LinkedIn</option>
+                              <option value="Email">Email</option>
+                              <option value="Other">Other</option>
+                            </select>
+                            <input 
+                              value={link.url}
+                              onChange={(e) => handleUpdateSocialLink(index, 'url', e.target.value)}
+                              placeholder="https://..."
+                              className="w-full px-4 py-3 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream text-sm"
+                            />
+                            <button 
+                              onClick={() => handleRemoveSocialLink(index)}
+                              className="p-3 text-red-500 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                        {(!siteSettings.social_links || siteSettings.social_links.length === 0) && (
+                          <p className="text-xs opacity-50 italic py-2 ml-4">No social links configured.</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="pt-2">
+                      <button
+                        onClick={handleSaveSiteSettings}
+                        disabled={isSavingSettings}
+                        className="px-8 py-3 rounded-full bg-ink text-cream dark:bg-cream dark:text-ink text-xs uppercase tracking-widest hover:scale-105 transition-transform shadow-lg disabled:opacity-50"
+                      >
+                        {isSavingSettings ? 'Saving...' : 'Save Site Settings'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6 pt-12 border-t border-black/5 dark:border-white/5">
+                  <div>
+                    <h3 className="text-2xl font-display">About Page Content</h3>
+                    <p className="text-sm opacity-60">Manage the hero section text, photo, and dynamic stats on the about page.</p>
+                  </div>
+                  
+                  <div className="grid gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Hero Title</label>
+                      <input
+                        value={siteSettings.about_content.hero_title}
+                        onChange={(e) => setSiteSettings(p => ({...p, about_content: {...p.about_content, hero_title: e.target.value}}))}
+                        className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Paragraph 1</label>
+                      <textarea
+                        rows={4}
+                        value={siteSettings.about_content.paragraph_1}
+                        onChange={(e) => setSiteSettings(p => ({...p, about_content: {...p.about_content, paragraph_1: e.target.value}}))}
+                        className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all resize-none"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Paragraph 2</label>
+                      <textarea
+                        rows={4}
+                        value={siteSettings.about_content.paragraph_2}
+                        onChange={(e) => setSiteSettings(p => ({...p, about_content: {...p.about_content, paragraph_2: e.target.value}}))}
+                        className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all resize-none"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Portrait Image</label>
+                      <div className="flex gap-4 items-center">
+                        {siteSettings.about_content.image_url && (
+                          <img src={siteSettings.about_content.image_url} alt="Portrait Preview" className="w-16 h-16 object-cover rounded-xl shadow-md shrink-0" />
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleUploadAboutImage}
+                          className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink file:text-cream dark:file:bg-cream dark:file:text-ink hover:file:opacity-80"
+                        />
+                      </div>
+                      {isUploadingAboutImage && <p className="text-xs ml-4 animate-pulse opacity-70">Uploading image...</p>}
+                    </div>
+
+                    <div className="pt-6 border-t border-black/5 dark:border-white/5 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Experience Stats</label>
+                        <button onClick={handleAddAboutStat} className="text-xs flex items-center gap-1 opacity-70 hover:opacity-100">
+                          <Plus className="w-3 h-3" /> Add Stat
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {siteSettings.about_content.stats?.map((stat, idx) => (
+                          <div key={idx} className="flex gap-3 items-center">
+                            <input 
+                              value={stat.value}
+                              onChange={(e) => handleUpdateAboutStat(idx, 'value', e.target.value)}
+                              placeholder="e.g. 10+"
+                              className="w-1/3 px-4 py-3 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream text-sm"
+                            />
+                            <input 
+                              value={stat.label}
+                              onChange={(e) => handleUpdateAboutStat(idx, 'label', e.target.value)}
+                              placeholder="e.g. Years Experience"
+                              className="w-full px-4 py-3 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream text-sm"
+                            />
+                            <button 
+                              onClick={() => handleRemoveAboutStat(idx)}
+                              className="p-3 text-red-500 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="pt-2">
+                      <button
+                        onClick={handleSaveSiteSettings}
+                        disabled={isSavingSettings}
+                        className="px-8 py-3 rounded-full bg-ink text-cream dark:bg-cream dark:text-ink text-xs uppercase tracking-widest hover:scale-105 transition-transform shadow-lg disabled:opacity-50"
+                      >
+                        {isSavingSettings ? 'Saving...' : 'Save About Settings'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6 pt-12 border-t border-black/5 dark:border-white/5">
+                  <div>
+                    <h3 className="text-2xl font-display">Account Security</h3>
+                    <p className="text-sm opacity-60">Update your administrator password.</p>
+                  </div>
+                  
+                  <div className="grid gap-6">
+                    <div className="space-y-2 max-w-md">
+                      <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">New Password</label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
+                      />
+                    </div>
+                    <div className="pt-2">
+                      <button
+                        onClick={handleUpdatePassword}
+                        disabled={isSavingSettings || !newPassword}
+                        className="px-8 py-3 rounded-full bg-red-500 text-white text-xs uppercase tracking-widest hover:scale-105 transition-transform shadow-lg disabled:opacity-50"
+                      >
+                        {isSavingSettings ? 'Updating...' : 'Update Password'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
@@ -456,13 +933,14 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Image URL</label>
+                  <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Upload Image</label>
                   <input
-                    value={portfolioImageUrl}
-                    onChange={(e) => setPortfolioImageUrl(e.target.value)}
-                    className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
-                    placeholder="https://..."
+                    type="file"
+                    accept="image/*"
+                    onChange={handleUploadPortfolioImage}
+                    className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink file:text-cream dark:file:bg-cream dark:file:text-ink hover:file:opacity-80"
                   />
+                  {isUploadingPortfolioImage && <p className="text-xs ml-4 animate-pulse opacity-70">Uploading image...</p>}
                 </div>
               </div>
 
@@ -481,7 +959,7 @@ const AdminDashboard = () => {
                 </button>
                 <button
                   onClick={handleCreatePortfolioItem}
-                  className="px-8 py-3 rounded-full bg-ink text-cream text-xs uppercase tracking-widest hover:scale-105 transition-transform shadow-lg"
+                  className="px-8 py-3 rounded-full bg-ink text-cream dark:bg-cream dark:text-ink text-xs uppercase tracking-widest hover:scale-105 transition-transform shadow-lg"
                 >
                   Save
                 </button>
@@ -601,7 +1079,7 @@ const AdminDashboard = () => {
                 </a>
                 <button
                   onClick={() => setSelectedBooking(null)}
-                  className="px-8 py-3 rounded-full bg-ink text-cream text-xs uppercase tracking-widest hover:scale-105 transition-transform shadow-lg"
+                  className="px-8 py-3 rounded-full bg-ink text-cream dark:bg-cream dark:text-ink text-xs uppercase tracking-widest hover:scale-105 transition-transform shadow-lg"
                 >
                   Done
                 </button>

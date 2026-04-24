@@ -62,7 +62,7 @@ const Login = () => {
         className="max-w-md w-full glass dark:glass-dark p-12 rounded-[3rem] shadow-2xl space-y-8"
       >
         <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-ink text-cream rounded-full flex items-center justify-center mx-auto shadow-lg">
+          <div className="w-16 h-16 bg-ink text-cream dark:bg-cream dark:text-ink rounded-full flex items-center justify-center mx-auto shadow-lg">
             <Camera className="w-8 h-8" />
           </div>
           <h1 className="text-4xl font-display">{isSignUp ? 'Create Admin' : 'Admin Portal'}</h1>
@@ -115,7 +115,7 @@ const Login = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-4 bg-ink text-cream rounded-full font-medium hover:scale-105 transition-transform shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:hover:scale-100"
+            className="w-full py-4 bg-ink text-cream dark:bg-cream dark:text-ink rounded-full font-medium hover:scale-105 transition-transform shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:hover:scale-100"
           >
             <span>{isLoading ? (isSignUp ? 'Signing Up...' : 'Signing In...') : (isSignUp ? 'Sign Up' : 'Sign In')}</span>
             <ArrowRight className="w-4 h-4" />

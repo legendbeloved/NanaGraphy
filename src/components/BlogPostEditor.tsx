@@ -5,6 +5,7 @@ import { CATEGORIES } from '../constants';
 import { Category } from '../types';
 import { cn } from '../utils';
 import { generateAltText } from '../services/geminiService';
+import { uploadToStorage } from '../services/supabaseAdmin';
 
 interface BlogPostEditorProps {
   onClose: () => void;
@@ -26,7 +27,25 @@ const BlogPostEditor = ({ onClose, onSave, initialData }: BlogPostEditorProps) =
       : new Date().toISOString().slice(0, 16)
   );
   const [isGeneratingAlt, setIsGeneratingAlt] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [activeView, setActiveView] = useState<'edit' | 'preview'>('edit');
+
+  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `post-${Date.now()}.${fileExt}`;
+      const publicUrl = await uploadToStorage('portfolio', filePath, file); // Reusing portfolio bucket or default
+      setCoverImage(publicUrl);
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to upload image: ' + err.message);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const handleGenerateAlt = async () => {
     if (!coverImage) return;
@@ -195,17 +214,17 @@ const BlogPostEditor = ({ onClose, onSave, initialData }: BlogPostEditorProps) =
               </div>
 
               <div className="space-y-4">
-                <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50">Cover Image URL</label>
+                <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50">Upload Cover Image</label>
                 <div className="relative">
                   <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
                   <input
-                    type="text"
-                    value={coverImage}
-                    onChange={(e) => setCoverImage(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-xl text-xs focus:outline-none"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleUploadImage}
+                    className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-xl text-xs focus:outline-none file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[10px] file:font-semibold file:bg-ink file:text-cream dark:file:bg-cream dark:file:text-ink hover:file:opacity-80"
                   />
                 </div>
+                {isUploadingImage && <p className="text-[10px] animate-pulse opacity-70">Uploading image...</p>}
                 {coverImage && (
                   <div className="relative aspect-video rounded-xl overflow-hidden border border-black/5">
                     <img src={coverImage} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />

@@ -1,0 +1,5 @@
+- `[x]` Dynamic About Page Configuration
+  - `[x]` Update `SiteSettingsRow` interface in `supabaseAdmin.ts` to include `about_content`.
+  - `[x]` Update `AdminDashboard.tsx` to handle inputs for Hero Title, paragraphs, Image URL, and stats arrays.
+  - `[x]` Update `About.tsx` to fetch settings and render the dynamic `about_content`, with graceful fallbacks.
+  - `[x]` Verify functionality.
