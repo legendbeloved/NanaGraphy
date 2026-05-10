@@ -35,7 +35,8 @@ import {
   getSiteSettings,
   updateSiteSettings,
   updateAdminPassword,
-  uploadToStorage
+  uploadToStorage,
+  fetchAdminStats
 } from '../services/supabaseAdmin';
 import { formatDate, cn } from '../utils';
 import { CATEGORIES } from '../constants';
@@ -61,6 +62,7 @@ const AdminDashboard = () => {
   const [portfolio, setPortfolio] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [adminStats, setAdminStats] = useState<any>(null);
 
   // Theme toggle state
   const [isDarkMode, setIsDarkMode] = useState(
@@ -93,11 +95,12 @@ const AdminDashboard = () => {
 
   const refreshData = async () => {
     try {
-      const [p, port, b, settings] = await Promise.all([
+      const [p, port, b, settings, statsAdmin] = await Promise.all([
         listPosts('all'),
         listPortfolioItems(),
         listBookings('all'),
-        getSiteSettings()
+        getSiteSettings(),
+        fetchAdminStats()
       ]);
       setPosts(p.map(post => ({
         id: post.id,
@@ -139,6 +142,7 @@ const AdminDashboard = () => {
           about_content: settings.about_content || defaultAboutContent
         });
       }
+      setAdminStats(statsAdmin);
     } catch (e) {
       console.error(e);
     } finally {
@@ -376,7 +380,7 @@ const AdminDashboard = () => {
     { label: 'Total Posts', value: posts.length.toString() },
     { label: 'Portfolio Items', value: portfolio.length.toString() },
     { label: 'New Bookings', value: bookings.filter(b => b.status === 'Pending').length.toString() },
-    { label: 'Subscribers', value: '1,204' },
+    { label: 'Subscribers', value: adminStats?.newsletterSubscribers?.toString() || '0' },
   ];
 
   const now = new Date();
@@ -690,6 +694,17 @@ const AdminDashboard = () => {
                         type="email"
                         value={siteSettings.contact_email}
                         onChange={(e) => setSiteSettings({ ...siteSettings, contact_email: e.target.value })}
+                        className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-50 ml-4">Payment Link</label>
+                      <input
+                        type="url"
+                        value={siteSettings.about_content?.payment_link || ''}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, about_content: { ...siteSettings.about_content, payment_link: e.target.value } as any })}
+                        placeholder="https://paystack.com/... or https://paypal.me/..."
                         className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
                       />
                     </div>

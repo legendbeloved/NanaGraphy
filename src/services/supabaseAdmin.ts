@@ -266,6 +266,18 @@ export async function updateBookingStatus(id: string, status: BookingStatus) {
   return data as BookingRow;
 }
 
+export async function getBookingById(id: string) {
+  const { data, error } = await supabase.from('bookings').select('*').eq('id', id).single();
+  if (error) throw error;
+  return data as BookingRow;
+}
+
+export async function updateBookingDates(id: string, preferred_date: string) {
+  const { data, error } = await supabase.from('bookings').update({ preferred_date }).eq('id', id).select('*').single();
+  if (error) throw error;
+  return data as BookingRow;
+}
+
 export async function listNewsletterSubscribers() {
   const { data, error } = await supabase.from('newsletter_subscribers').select('*').order('subscribed_at', { ascending: false });
   if (error) throw error;
@@ -284,6 +296,7 @@ export type SiteSettingsRow = {
     paragraph_2: string;
     image_url: string;
     stats: { value: string; label: string }[];
+    payment_link?: string;
   };
   updated_at: string;
 };

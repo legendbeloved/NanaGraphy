@@ -63,13 +63,43 @@ const Footer = () => {
         </div>
 
         <div>
-          <h4 className="font-display text-lg mb-6">Categories</h4>
-          <ul className="space-y-3 text-sm opacity-70">
-            <li><Link to="/blog?category=Lifestyle" className="hover:opacity-100 transition-opacity">Lifestyle</Link></li>
-            <li><Link to="/blog?category=Portraits" className="hover:opacity-100 transition-opacity">Portraits</Link></li>
-            <li><Link to="/blog?category=Travel" className="hover:opacity-100 transition-opacity">Travel</Link></li>
-            <li><Link to="/blog?category=Behind the Lens" className="hover:opacity-100 transition-opacity">Behind the Lens</Link></li>
-          </ul>
+          <h4 className="font-display text-lg mb-6">Newsletter</h4>
+          <p className="text-sm opacity-70 mb-4 leading-relaxed">
+            Subscribe to get updates on my latest editorial sessions, travel dates, and exclusive print releases.
+          </p>
+          <form 
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const form = e.target as HTMLFormElement;
+              const email = (form.elements.namedItem('email') as HTMLInputElement).value;
+              try {
+                await fetch('/api/subscribe', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email })
+                });
+                alert('Thank you for subscribing!');
+                form.reset();
+              } catch (err) {
+                alert('An error occurred. Please try again later.');
+              }
+            }}
+            className="flex flex-col gap-3"
+          >
+            <input 
+              type="email" 
+              name="email"
+              required
+              placeholder="Your email address" 
+              className="px-4 py-3 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream text-sm transition-all"
+            />
+            <button 
+              type="submit"
+              className="px-4 py-3 bg-ink text-cream dark:bg-cream dark:text-ink rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              Subscribe
+            </button>
+          </form>
         </div>
 
         <div>

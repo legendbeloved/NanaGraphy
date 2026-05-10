@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Calendar as CalendarIcon, User, Phone, MessageSquare, ArrowRight, ArrowLeft, CheckCircle2, Star, Gift } from 'lucide-react';
+import { Calendar as CalendarIcon, User, Phone, MessageSquare, ArrowRight, ArrowLeft, CheckCircle2, Star, Gift, CreditCard } from 'lucide-react';
 import { AVENTA_PACKAGES } from '../constants';
 import { cn } from '../utils';
 import { DayPicker } from 'react-day-picker';
-import 'react-day-picker/style.css'; // modern react-day-picker styles
+import 'react-day-picker/style.css';
+import { getSiteSettings } from '../services/supabaseAdmin';
 
 const bookingSchema = z.object({
   clientName: z.string().min(2, 'Name is required'),
@@ -16,8 +17,9 @@ const bookingSchema = z.object({
   giftRecipientName: z.string().optional(),
   giftRecipientPhone: z.string().min(5, 'Valid phone number required').optional().or(z.literal('')),
   giftMessage: z.string().optional(),
+  isAnonymous: z.boolean().optional(),
   serviceType: z.enum(['Basic', 'Standard', 'Premium']),
-  datePreference: z.array(z.date()).min(1, 'Please select at least one date'),
+  datePreference: z.array(z.date()).optional(),
   message: z.string().min(10, 'Please provide a bit more detail (min 10 chars)'),
 }).superRefine((data, ctx) => {
   if (data.isGift) {
@@ -35,6 +37,14 @@ const bookingSchema = z.object({
         path: ['giftRecipientPhone']
       });
     }
+  } else {
+    if (!data.datePreference || data.datePreference.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please select at least one date',
+        path: ['datePreference']
+      });
+    }
   }
 });
 
@@ -49,11 +59,21 @@ const Book = () => {
     defaultValues: {
       serviceType: 'Basic',
       isGift: false,
+      isAnonymous: false,
       datePreference: [],
     }
   });
 
   const isGift = watch('isGift');
+  const [paymentLink, setPaymentLink] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    getSiteSettings().then(settings => {
+      if (settings?.about_content?.payment_link) {
+        setPaymentLink(settings.about_content.payment_link);
+      }
+    });
+  }, []);
 
   const nextStep = async () => {
     let fieldsToValidate: (keyof BookingFormData)[] = [];
@@ -105,12 +125,25 @@ const Book = () => {
               Thank you for reaching out, Nana will get back to you within 48 hours to discuss your Aventa.
             </p>
           </div>
-          <button
-            onClick={() => window.location.href = '/'}
-            className="w-full py-4 bg-ink text-cream dark:bg-cream dark:text-ink rounded-full font-medium hover:scale-105 transition-transform"
-          >
-            Return Home
-          </button>
+          <div className="space-y-4">
+            {paymentLink && (
+              <a
+                href={paymentLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-4 flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-medium hover:scale-105 transition-transform"
+              >
+                <CreditCard className="w-5 h-5" />
+                <span>Proceed to Payment</span>
+              </a>
+            )}
+            <button
+              onClick={() => window.location.href = '/'}
+              className="w-full py-4 bg-ink text-cream dark:bg-cream dark:text-ink rounded-full font-medium hover:scale-105 transition-transform"
+            >
+              Return Home
+            </button>
+          </div>
         </motion.div>
       </div>
     );
@@ -254,6 +287,17 @@ const Book = () => {
                             className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all resize-none"
                           />
                         </div>
+
+                        <div className="pt-2 pb-2">
+                          <label className="flex items-center space-x-3 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              {...register('isAnonymous')}
+                              className="w-5 h-5 rounded border-black/20 text-ink focus:ring-ink transition-colors"
+                            />
+                            <span className="text-sm font-medium uppercase tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">Send Anonymously?</span>
+                          </label>
+                        </div>
                       </motion.div>
                     )}
                   </motion.div>
@@ -287,25 +331,27 @@ const Book = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-4 flex flex-col items-center justify-center pt-4">
-                      <label className="text-xs font-medium uppercase tracking-widest opacity-50 pb-2 w-full ml-4">Preferred Dates (Select Multiple)</label>
-                      <div className="bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-[2rem] p-6 shadow-inner w-full flex justify-center">
-                        <Controller
-                          name="datePreference"
-                          control={control}
-                          render={({ field }) => (
-                            <DayPicker
-                              mode="multiple"
-                              min={1}
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              className="font-sans border-0 w-full flex align-middle justify-center p-0 m-0 [&_.rdp-day_button]:!rounded-full [&_.rdp-day]:hover:!bg-black/5 dark:[&_.rdp-day]:hover:!bg-white/5 [&_.rdp-day_button[aria-selected='true']]:!bg-ink dark:[&_.rdp-day_button[aria-selected='true']]:!bg-cream [&_.rdp-day_button[aria-selected='true']]:!text-cream dark:[&_.rdp-day_button[aria-selected='true']]:!text-ink"
-                            />
-                          )}
-                        />
+                    {!isGift && (
+                      <div className="space-y-4 flex flex-col items-center justify-center pt-4">
+                        <label className="text-xs font-medium uppercase tracking-widest opacity-50 pb-2 w-full ml-4">Preferred Dates (Select Multiple)</label>
+                        <div className="bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-[2rem] p-6 shadow-inner w-full flex justify-center">
+                          <Controller
+                            name="datePreference"
+                            control={control}
+                            render={({ field }) => (
+                              <DayPicker
+                                mode="multiple"
+                                min={1}
+                                selected={field.value || []}
+                                onSelect={field.onChange}
+                                className="font-sans border-0 w-full flex align-middle justify-center p-0 m-0 [&_.rdp-day_button]:!rounded-full [&_.rdp-day]:hover:!bg-black/5 dark:[&_.rdp-day]:hover:!bg-white/5 [&_.rdp-day_button[aria-selected='true']]:!bg-ink dark:[&_.rdp-day_button[aria-selected='true']]:!bg-cream [&_.rdp-day_button[aria-selected='true']]:!text-cream dark:[&_.rdp-day_button[aria-selected='true']]:!text-ink"
+                              />
+                            )}
+                          />
+                        </div>
+                        {errors.datePreference && <p className="text-xs text-red-500 w-full text-center">{errors.datePreference.message}</p>}
                       </div>
-                      {errors.datePreference && <p className="text-xs text-red-500 w-full text-center">{errors.datePreference.message}</p>}
-                    </div>
+                    )}
                   </motion.div>
                 )}
 

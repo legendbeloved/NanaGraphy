@@ -11,6 +11,7 @@ import Book from './pages/Book';
 import BookingConfirmation from './pages/BookingConfirmation';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
+import RedeemGift from './pages/RedeemGift';
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/booking/confirmation" element={<BookingConfirmation />} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/redeem/:id" element={<RedeemGift />} />
           </Routes>
         </main>
         <Footer />
