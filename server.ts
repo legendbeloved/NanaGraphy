@@ -5,6 +5,7 @@ import { Resend } from "resend";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import twilio from "twilio";
+import crypto from "crypto";
 
 dotenv.config();
 
@@ -44,7 +45,9 @@ async function startServer() {
         ? new Date(bookingData.datePreference[0]).toISOString().split('T')[0] 
         : null;
 
+      const bookingId = crypto.randomUUID();
       const { data: dbData, error: dbError } = await supabase.from('bookings').insert({
+        id: bookingId,
         client_name: bookingData.clientName,
         email: 'no-email-provided@m.com',
         phone: bookingData.clientPhone,
@@ -53,13 +56,11 @@ async function startServer() {
         vision_description: bookingData.message,
         additional_notes: extraNotes.trim(),
         status: 'pending'
-      }).select('id').single();
+      });
 
       if (dbError) {
         console.error("Database insert error:", dbError);
       }
-      
-      const bookingId = dbData?.id;
 
       // 1. Send notification email to Nana
       await resend.emails.send({
