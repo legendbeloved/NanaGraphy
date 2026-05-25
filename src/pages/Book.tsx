@@ -15,12 +15,12 @@ const bookingSchema = z.object({
   clientPhone: z.string().min(5, 'Valid phone number required'),
   isGift: z.boolean(),
   giftRecipientName: z.string().optional(),
-  giftRecipientPhone: z.string().min(5, 'Valid phone number required').optional().or(z.literal('')),
+  giftRecipientEmail: z.string().email('Valid email required').optional().or(z.literal('')),
   giftMessage: z.string().optional(),
   isAnonymous: z.boolean().optional(),
-  serviceType: z.enum(['Basic', 'Standard', 'Premium']),
+  serviceType: z.enum(['Basic', 'Standard', 'Premium', 'Lifestyle Content', 'Brand Content']),
   datePreference: z.array(z.date()).optional(),
-  message: z.string().min(10, 'Please provide a bit more detail (min 10 chars)'),
+  message: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.isGift) {
     if (!data.giftRecipientName || data.giftRecipientName.length < 2) {
@@ -30,11 +30,11 @@ const bookingSchema = z.object({
         path: ['giftRecipientName']
       });
     }
-    if (!data.giftRecipientPhone || data.giftRecipientPhone.length < 5) {
+    if (!data.giftRecipientEmail || data.giftRecipientEmail.length < 5) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Valid recipient phone required',
-        path: ['giftRecipientPhone']
+        message: 'Valid recipient email required',
+        path: ['giftRecipientEmail']
       });
     }
   } else {
@@ -65,22 +65,26 @@ const Book = () => {
   });
 
   const isGift = watch('isGift');
-  const [paymentLink, setPaymentLink] = useState<string | null>(null);
+  const selectedServiceType = watch('serviceType');
+  const [globalPaymentLink, setGlobalPaymentLink] = useState<string | null>(null);
 
   React.useEffect(() => {
     getSiteSettings().then(settings => {
       if (settings?.about_content?.payment_link) {
-        setPaymentLink(settings.about_content.payment_link);
+        setGlobalPaymentLink(settings.about_content.payment_link);
       }
     });
   }, []);
+
+  const selectedPackage = AVENTA_PACKAGES.find(pkg => pkg.id === selectedServiceType);
+  const paymentLink = selectedPackage?.paymentLink || globalPaymentLink;
 
   const nextStep = async () => {
     let fieldsToValidate: (keyof BookingFormData)[] = [];
     if (step === 1) {
       fieldsToValidate = ['clientName', 'clientPhone'];
       if (isGift) {
-        fieldsToValidate.push('giftRecipientName', 'giftRecipientPhone');
+        fieldsToValidate.push('giftRecipientName', 'giftRecipientEmail');
       }
     }
     if (step === 2) fieldsToValidate = ['serviceType', 'datePreference'];
@@ -268,14 +272,14 @@ const Book = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Recipient Phone (WhatsApp)</label>
+                          <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Recipient Email</label>
                           <input
-                            type="tel"
-                            {...register('giftRecipientPhone')}
-                            placeholder="+1 (555) 000-0000"
+                            type="email"
+                            {...register('giftRecipientEmail')}
+                            placeholder="recipient@example.com"
                             className="w-full px-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
                           />
-                          {errors.giftRecipientPhone && <p className="text-xs text-red-500 ml-4">{errors.giftRecipientPhone.message}</p>}
+                          {errors.giftRecipientEmail && <p className="text-xs text-red-500 ml-4">{errors.giftRecipientEmail.message}</p>}
                         </div>
 
                         <div className="space-y-2">
@@ -313,18 +317,27 @@ const Book = () => {
                   >
                     <div className="space-y-4">
                       <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Aventa Package</label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {AVENTA_PACKAGES.map(pkg => (
-                          <label key={pkg.id} className="relative cursor-pointer group">
+                          <label key={pkg.id} className="relative cursor-pointer group h-full">
                             <input
                               type="radio"
                               value={pkg.id}
                               {...register('serviceType')}
                               className="peer sr-only"
                             />
-                            <div className="p-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl peer-checked:border-ink peer-checked:bg-ink peer-checked:text-cream dark:peer-checked:bg-cream dark:peer-checked:border-cream dark:peer-checked:text-ink transition-all flex flex-col items-center justify-center text-center space-y-2 h-full">
-                              <span className="font-display text-lg">{pkg.label}</span>
-                              <span className="text-[10px] uppercase tracking-widest opacity-70 block">{pkg.basePrice}</span>
+                            <div className="p-6 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl peer-checked:border-ink peer-checked:bg-ink peer-checked:text-cream dark:peer-checked:bg-cream dark:peer-checked:border-cream dark:peer-checked:text-ink transition-all flex flex-col space-y-4 h-full relative overflow-hidden group-hover:border-black/30 dark:group-hover:border-white/30 peer-checked:group-hover:border-ink dark:peer-checked:group-hover:border-cream shadow-sm hover:shadow-md">
+                              <div className="text-center pb-3 border-b border-black/10 dark:border-white/10 peer-checked:border-cream/20 dark:peer-checked:border-ink/20">
+                                <span className="font-display text-2xl block">{pkg.label}</span>
+                                <span className="text-xs font-medium uppercase tracking-widest opacity-80 block mt-1">{pkg.basePrice}</span>
+                              </div>
+                              <p className="text-xs opacity-80 text-center font-medium leading-relaxed px-2">{pkg.description}</p>
+                              <ul className="text-sm space-y-2 flex-grow list-none text-center opacity-90 py-2">
+                                {pkg.features.map((f, i) => <li key={i}>• {f}</li>)}
+                              </ul>
+                              {('extraNote' in pkg && pkg.extraNote) && (
+                                <p className="text-[10px] opacity-60 text-center italic mt-auto pt-2">{pkg.extraNote}</p>
+                              )}
                             </div>
                           </label>
                         ))}

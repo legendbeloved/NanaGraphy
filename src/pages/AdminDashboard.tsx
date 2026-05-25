@@ -50,7 +50,8 @@ const defaultAboutContent = {
   stats: [
     { value: "10+", label: "Years Experience" },
     { value: "500+", label: "Sessions Captured" }
-  ]
+  ],
+  payment_link: ""
 };
 
 const AdminDashboard = () => {
