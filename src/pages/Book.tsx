@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Calendar as CalendarIcon, User, Phone, MessageSquare, ArrowRight, ArrowLeft, CheckCircle2, Star, Gift, CreditCard } from 'lucide-react';
+import { Calendar as CalendarIcon, User, Mail, MessageSquare, ArrowRight, ArrowLeft, CheckCircle2, Star, Gift, CreditCard } from 'lucide-react';
 import { AVENTA_PACKAGES } from '../constants';
 import { cn } from '../utils';
 import { DayPicker } from 'react-day-picker';
@@ -12,7 +12,7 @@ import { getSiteSettings } from '../services/supabaseAdmin';
 
 const bookingSchema = z.object({
   clientName: z.string().min(2, 'Name is required'),
-  clientPhone: z.string().min(5, 'Valid phone number required'),
+  clientEmail: z.string().email('Valid email address required'),
   isGift: z.boolean(),
   giftRecipientName: z.string().optional(),
   giftRecipientEmail: z.string().email('Valid email required').optional().or(z.literal('')),
@@ -82,7 +82,7 @@ const Book = () => {
   const nextStep = async () => {
     let fieldsToValidate: (keyof BookingFormData)[] = [];
     if (step === 1) {
-      fieldsToValidate = ['clientName', 'clientPhone'];
+      fieldsToValidate = ['clientName', 'clientEmail'];
       if (isGift) {
         fieldsToValidate.push('giftRecipientName', 'giftRecipientEmail');
       }
@@ -230,17 +230,17 @@ const Book = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Phone Number (WhatsApp)</label>
+                      <label className="text-xs font-medium uppercase tracking-widest opacity-50 ml-4">Email Address</label>
                       <div className="relative">
-                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
                         <input
-                          type="tel"
-                          {...register('clientPhone')}
-                          placeholder="+1 (555) 000-0000"
+                          type="email"
+                          {...register('clientEmail')}
+                          placeholder="your@email.com"
                           className="w-full pl-12 pr-6 py-4 bg-white/50 dark:bg-ink/30 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-cream transition-all"
                         />
                       </div>
-                      {errors.clientPhone && <p className="text-xs text-red-500 ml-4">{errors.clientPhone.message}</p>}
+                      {errors.clientEmail && <p className="text-xs text-red-500 ml-4">{errors.clientEmail.message}</p>}
                     </div>
 
                     <div className="pt-4 pb-2">

@@ -37,8 +37,8 @@ apiRouter.post("/bookings", async (req, res) => {
     const { data: dbData, error: dbError } = await supabase.from('bookings').insert({
       id: bookingId,
       client_name: bookingData.clientName,
-      email: 'no-email-provided@m.com',
-      phone: bookingData.clientPhone,
+      email: bookingData.clientEmail || 'no-email-provided@m.com',
+      phone: null,
       service_type: bookingData.serviceType,
       preferred_date: preferredDate,
       vision_description: bookingData.message,
@@ -57,7 +57,7 @@ apiRouter.post("/bookings", async (req, res) => {
       subject: `New Booking Inquiry: ${bookingData.clientName}${bookingData.isAnonymous ? ' (Anonymous Gift)' : ''}`,
       html: `
         <h1>New Inquiry Received</h1>
-        <p><strong>Client:</strong> ${bookingData.clientName} (Phone: ${bookingData.clientPhone})</p>
+        <p><strong>Client:</strong> ${bookingData.clientName} (Email: ${bookingData.clientEmail})</p>
         <p><strong>Service:</strong> ${bookingData.serviceType}</p>
         <p><strong>Preferred Dates:</strong> ${bookingData.datePreference && bookingData.datePreference.length > 0 ? bookingData.datePreference.map((d: string) => new Date(d).toLocaleDateString()).join(", ") : 'None'}</p>
         <p><strong>Vision:</strong> ${bookingData.message}</p>
