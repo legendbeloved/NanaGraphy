@@ -140,7 +140,7 @@ const AdminDashboard = () => {
           hero_subtitle: settings.hero_subtitle || '',
           contact_email: settings.contact_email || '',
           social_links: settings.social_links || [],
-          about_content: settings.about_content || defaultAboutContent
+          about_content: { ...defaultAboutContent, ...(settings.about_content || {}) }
         });
       }
       setAdminStats(statsAdmin);

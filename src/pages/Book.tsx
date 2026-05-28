@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -52,7 +53,7 @@ type BookingFormData = z.infer<typeof bookingSchema>;
 
 const Book = () => {
   const [step, setStep] = useState(1);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const navigate = useNavigate();
 
   const { register, handleSubmit, formState: { errors }, trigger, watch, control } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
@@ -105,53 +106,26 @@ const Book = () => {
         throw new Error('Failed to submit booking');
       }
 
-      setIsSubmitted(true);
+      navigate('/booking/confirmation', {
+        state: {
+          booking: {
+            fullName: data.clientName,
+            email: data.clientEmail,
+            serviceType: data.serviceType,
+            preferredDate: data.datePreference && data.datePreference.length > 0 
+              ? new Date(data.datePreference[0]).toLocaleDateString()
+              : 'None',
+            paymentLink: paymentLink
+          }
+        }
+      });
     } catch (error) {
       console.error('Error submitting booking:', error);
       alert('There was an issue sending your inquiry. Please try again.');
     }
   };
 
-  if (isSubmitted) {
-    return (
-      <div className="pt-32 pb-20 px-6 min-h-screen flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full text-center space-y-8 p-12 bg-white dark:bg-ink/50 rounded-[3rem] shadow-2xl border border-black/5 dark:border-white/5"
-        >
-          <div className="w-20 h-20 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto">
-            <CheckCircle2 className="w-10 h-10" />
-          </div>
-          <div className="space-y-4">
-            <h2 className="text-4xl font-display">Inquiry Sent</h2>
-            <p className="text-lg font-light opacity-70">
-              Thank you for reaching out, Nana will get back to you within 48 hours to discuss your Aventa.
-            </p>
-          </div>
-          <div className="space-y-4">
-            {paymentLink && (
-              <a
-                href={paymentLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-4 flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-medium hover:scale-105 transition-transform"
-              >
-                <CreditCard className="w-5 h-5" />
-                <span>Proceed to Payment</span>
-              </a>
-            )}
-            <button
-              onClick={() => window.location.href = '/'}
-              className="w-full py-4 bg-ink text-cream dark:bg-cream dark:text-ink rounded-full font-medium hover:scale-105 transition-transform"
-            >
-              Return Home
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="pt-32 pb-20 px-6 max-w-7xl mx-auto min-h-screen">

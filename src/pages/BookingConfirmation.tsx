@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CheckCircle, ArrowRight, Calendar, User, Camera } from 'lucide-react';
+import { CheckCircle, ArrowRight, Calendar, User, Camera, CreditCard } from 'lucide-react';
 
 const BookingConfirmation = () => {
   const location = useLocation();
@@ -79,16 +79,36 @@ const BookingConfirmation = () => {
           </div>
         </motion.div>
 
+
+        {booking.paymentLink && (
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.45 }}
+            className="mb-12"
+          >
+            <a
+              href={booking.paymentLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full md:w-auto px-8 py-4 flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-medium hover:scale-105 transition-transform shadow-lg mx-auto"
+            >
+              <CreditCard className="w-5 h-5" />
+              <span>Proceed to Payment</span>
+            </a>
+          </motion.div>
+        )}
+
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="space-y-6"
+          className="space-y-6 flex flex-col items-center"
         >
           <p className="text-sm italic opacity-60">
             In the meantime, explore the latest stories in the portfolio.
           </p>
-          <Link to="/portfolio" className="btn-primary inline-flex items-center space-x-2">
+          <Link to="/portfolio" className="btn-primary inline-flex items-center space-x-2 rounded-full px-8 py-4 bg-ink text-cream dark:bg-cream dark:text-ink hover:scale-105 transition-transform shadow-lg">
             <span>Explore Portfolio</span>
             <ArrowRight size={16} />
           </Link>
